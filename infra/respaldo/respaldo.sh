@@ -3,14 +3,16 @@
 #   respaldo.sh completa    → copia completa en repo1 (semanal)
 #   respaldo.sh diferencial → copia diferencial en repo1 (diaria)
 #   respaldo.sh mensual     → copia completa en repo2 (se guardan 6)
+#   respaldo.sh externa     → copia completa en repo3, Backblaze B2 (semanal, se guardan 4)
 # Deja el resultado en /srv/miti/backups/estado/<tipo>.txt y el detalle en logs/.
 set -euo pipefail
 
-TIPO="${1:?uso: respaldo.sh completa|diferencial|mensual}"
+TIPO="${1:?uso: respaldo.sh completa|diferencial|mensual|externa}"
 case "$TIPO" in
   completa)    ARGS=(--repo=1 --type=full) ;;
   diferencial) ARGS=(--repo=1 --type=diff) ;;
   mensual)     ARGS=(--repo=2 --type=full) ;;
+  externa)     ARGS=(--repo=3 --type=full) ;;
   *) echo "tipo desconocido: $TIPO" >&2; exit 2 ;;
 esac
 

@@ -5,7 +5,10 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 # Completa los domingos 06:00 UTC (03:00 AR); diferencial el resto de los días.
 0 6 * * 0   root /srv/miti/app/infra/respaldo/respaldo.sh completa
 0 6 * * 1-6 root /srv/miti/app/infra/respaldo/respaldo.sh diferencial
+# Externa (repo3, Backblaze) los domingos 06:30 UTC.
+30 6 * * 0  root /srv/miti/app/infra/respaldo/respaldo.sh externa
 # Mensual (repo2) el día 1 a las 07:00 UTC.
 0 7 1 * *   root /srv/miti/app/infra/respaldo/respaldo.sh mensual
-# Prueba de restauración el día 2 a las 08:00 UTC.
-0 8 2 * *   root /srv/miti/app/infra/respaldo/prueba-restauracion.sh
+# Pruebas de restauración: Oracle el día 2 y Backblaze el día 3, 08:00 UTC.
+0 8 2 * *   root /srv/miti/app/infra/respaldo/prueba-restauracion.sh 1
+0 8 3 * *   root /srv/miti/app/infra/respaldo/prueba-restauracion.sh 3
