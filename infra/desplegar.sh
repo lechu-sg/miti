@@ -22,7 +22,7 @@ fi
 
 DOMINIO=$(grep -oP '^MITI_DOMINIO=\K.*' .env)
 for i in $(seq 1 30); do
-  if curl -fsS -m 5 "https://$DOMINIO/salud" >/dev/null; then
+  if curl -fs -m 5 "https://$DOMINIO/salud" >/dev/null; then
     echo "salud: ok ($DOMINIO)"
     exit 0
   fi
