@@ -26,11 +26,14 @@ class Ajustes(BaseSettings):
 
     # Archivo con líneas CLAVE=valor: CLAVE_MAESTRA y CLAVE_JWT (base64).
     claves_archivo: str | None = None
+    # Archivo con la configuración del SMTP de sole.ar (SMTP_HOST, SMTP_USUARIO, ...).
+    smtp_archivo: str | None = None
 
     minutos_token: int = 15
     dias_refresco: int = 60
     minutos_codigo: int = 10
     intentos_codigo: int = 5
+    codigos_por_hora: int = 5
     edad_minima: int = 13
     limite_gratis_integrantes: int = 5
 

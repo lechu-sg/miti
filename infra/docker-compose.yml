@@ -67,7 +67,8 @@ services:
       MITI_DB_USUARIO: miti
       MITI_DB_CLAVE_ARCHIVO: /run/secrets/db_password
       MITI_CLAVES_ARCHIVO: /run/secrets/claves
-    secrets: [db_password, claves]
+      MITI_SMTP_ARCHIVO: /run/secrets/smtp
+    secrets: [db_password, claves, smtp]
     depends_on:
       db:
         condition: service_healthy
@@ -78,6 +79,8 @@ secrets:
     file: /srv/miti/secrets/db_password
   claves:
     file: /srv/miti/secrets/claves.env
+  smtp:
+    file: /srv/miti/secrets/smtp.env
 
 networks:
   borde:

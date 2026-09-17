@@ -5,10 +5,10 @@ import secrets
 from datetime import UTC, date, datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
-from sqlalchemy import select, update
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from .. import cripto
+from .. import correo, cripto
 from ..config import ajustes
 from ..db import sesion
 from ..esquemas import CambiarPerfil, PedirCodigo, Perfil, Refrescar, Tokens, Verificar
@@ -31,6 +31,22 @@ async def pedir_codigo(datos: PedirCodigo, s: AsyncSession = Depends(sesion)) ->
     huella = cripto.huella(email)
     codigo = f"{secrets.randbelow(1_000_000):06d}"
 
+    # Tope de pedidos por dirección: evita usar Miti para molestar a alguien.
+    pedidos = (
+        await s.execute(
+            select(func.count())
+            .select_from(CodigoAcceso)
+            .where(
+                CodigoAcceso.email_huella == huella,
+                CodigoAcceso.creado >= datetime.now(UTC) - timedelta(hours=1),
+            )
+        )
+    ).scalar_one()
+    if pedidos >= ajustes().codigos_por_hora:
+        raise HTTPException(
+            status.HTTP_429_TOO_MANY_REQUESTS, "pediste muchos códigos: probá de nuevo en un rato"
+        )
+
     # Un código nuevo invalida los anteriores de ese email.
     await s.execute(
         update(CodigoAcceso)
@@ -44,13 +60,21 @@ async def pedir_codigo(datos: PedirCodigo, s: AsyncSession = Depends(sesion)) ->
             expira=datetime.now(UTC) + timedelta(minutes=ajustes().minutos_codigo),
         )
     )
+    await s.flush()
+
+    asunto, texto, html = correo.armar_codigo(codigo, ajustes().minutos_codigo)
+    try:
+        salio = await correo.enviar(s, email, asunto, texto, html, motivo="codigo_acceso")
+    except correo.CorreoLleno as e:
+        await s.commit()
+        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, f"{e}: probá en un rato") from None
     await s.commit()
 
-    if ajustes().es_produccion:
-        # TODO: mandarlo por email cuando esté el proveedor configurado.
-        registro.warning("no hay proveedor de email configurado: el código no se envió")
-    else:
+    if not ajustes().es_produccion:
+        # En prueba el código también queda en el registro, para poder probar sin casilla.
         registro.warning("CÓDIGO DE ACCESO para %s: %s", email, codigo)
+    if not salio and ajustes().es_produccion:
+        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "no pudimos mandar el mail")
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 

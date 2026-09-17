@@ -49,5 +49,9 @@ pg_ctl -D $D -m fast -w stop
   echo "OK $(date -u +%FT%TZ) restauracion repo$REPO" > "$BASE/estado/restauracion-repo$REPO.txt"
 else
   echo "ERROR $(date -u +%FT%TZ) restauracion repo$REPO (ver $LOG)" > "$BASE/estado/restauracion-repo$REPO.txt"
+  /srv/miti/app/infra/respaldo/avisar.py "falló la prueba de restauración (repo$REPO)"     "$(printf 'La restauración de prueba del repositorio %s falló el %s.
+
+Últimas líneas:
+%s' "$REPO" "$(date -u +%FT%TZ)" "$(tail -20 "$LOG")")"
   exit 1
 fi

@@ -181,3 +181,18 @@ class Historial(Base):
     objeto_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
     detalle: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
     cuando: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class EnvioCorreo(Base):
+    """Cada mail que sale. Sirve de auditoría y para no pasarnos del límite del hosting."""
+
+    __tablename__ = "envios_correo"
+    __table_args__ = (Index("envios_correo_cuando", "cuando"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=_uuid)
+    # Del destinatario se guarda la huella, no la dirección.
+    destino_huella: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    motivo: Mapped[str] = mapped_column(String(40), nullable=False, default="")
+    estado: Mapped[str] = mapped_column(String(20), nullable=False)
+    detalle: Mapped[str | None] = mapped_column(Text)
+    cuando: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

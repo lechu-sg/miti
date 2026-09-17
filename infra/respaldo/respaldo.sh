@@ -25,6 +25,10 @@ if docker compose exec -T -u postgres db pgbackrest --stanza=miti "${ARGS[@]}" b
   echo "OK $(date -u +%FT%TZ) $TIPO" > "$BASE/estado/$TIPO.txt"
 else
   echo "ERROR $(date -u +%FT%TZ) $TIPO (ver $LOG)" > "$BASE/estado/$TIPO.txt"
+  /srv/miti/app/infra/respaldo/avisar.py "falló la copia $TIPO"     "$(printf 'La copia %s falló el %s.
+
+Últimas líneas:
+%s' "$TIPO" "$(date -u +%FT%TZ)" "$(tail -15 "$LOG")")"
   exit 1
 fi
 

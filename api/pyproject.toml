@@ -13,6 +13,7 @@ dependencies = [
     "pydantic-settings>=2.6",
     "cryptography>=43",
     "pyjwt>=2.9",
+    "aiosmtplib>=3.0",
 ]
 
 [dependency-groups]
