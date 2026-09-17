@@ -4,6 +4,7 @@ import logging
 import os
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy import text
 
@@ -25,6 +26,15 @@ app = FastAPI(
     redoc_url=None,
     openapi_url="/openapi.json" if not ajustes().es_produccion else None,
 )
+
+if not ajustes().es_produccion:
+    # Solo para poder probar la app en el navegador durante el desarrollo.
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origin_regex=r"http://(localhost|127\.0\.0\.1)(:\d+)?",
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
 app.include_router(acceso.ruteador)
 app.include_router(campanas.ruteador)
