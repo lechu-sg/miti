@@ -13,6 +13,7 @@ import logging
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from email.message import EmailMessage
+from email.utils import formatdate, make_msgid, parseaddr
 from pathlib import Path
 
 import aiosmtplib
@@ -107,6 +108,9 @@ async def enviar(
     mensaje["From"] = cfg.desde
     mensaje["To"] = destino
     mensaje["Subject"] = asunto
+    # Sin Date ni Message-Id los filtros de spam descuentan puntos (medido: -1,5).
+    mensaje["Date"] = formatdate(localtime=False)
+    mensaje["Message-Id"] = make_msgid(domain=parseaddr(cfg.desde)[1].split("@")[-1])
     mensaje["Auto-Submitted"] = "auto-generated"
     mensaje.set_content(texto)
     if html:
