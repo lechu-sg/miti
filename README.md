@@ -35,3 +35,15 @@ ssh -i ~/.ssh/oracle_ollama ubuntu@129.146.57.10 /srv/miti/app/infra/desplegar.s
 
 - **No correr `netfilter-persistent save`:** con Docker andando, guarda sus reglas internas. El firewall se edita a mano en `/etc/iptables/rules.v4`.
 - Un archivo montado en un contenedor no se edita con `sed -i`, o hay que reiniciar el contenedor después.
+
+### La app
+
+```bash
+cd app
+flutter run                 # en un celular conectado por USB
+flutter build apk --release # APK firmado con la clave de depuración (todavía)
+flutter test                # pruebas de widgets
+```
+
+También está habilitada la versión web, solo como herramienta de desarrollo para
+mirar las pantallas en el navegador: `flutter run -d chrome`. El producto es el APK.
