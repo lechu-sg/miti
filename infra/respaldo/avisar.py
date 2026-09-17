@@ -20,10 +20,13 @@ BITACORA = pathlib.Path("/srv/miti/backups/logs/avisos.log")
 
 
 def anotar(texto: str) -> None:
-    BITACORA.parent.mkdir(parents=True, exist_ok=True)
     marca = datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
-    with BITACORA.open("a", encoding="utf-8") as f:
-        f.write(f"{marca} {texto}\n")
+    try:
+        BITACORA.parent.mkdir(parents=True, exist_ok=True)
+        with BITACORA.open("a", encoding="utf-8") as f:
+            f.write(f"{marca} {texto}\n")
+    except OSError as e:  # sin permisos (no corre como root): al menos que se vea
+        print(f"{marca} {texto} [no se pudo anotar: {e}]", file=sys.stderr)
 
 
 def main() -> int:
