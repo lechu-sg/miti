@@ -1,0 +1,83 @@
+# Miti — servidor (VPS Oracle A1, arm64)
+# Se ejecuta desde /srv/miti/app/infra con:  docker compose up -d --build
+# Datos en /srv/miti/data y secretos en /srv/miti/secrets (fuera del repositorio).
+
+name: miti
+
+services:
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - /srv/miti/data/caddy:/data
+      - /srv/miti/data/caddy-config:/config
+    environment:
+      MITI_DOMINIO: ${MITI_DOMINIO:?falta MITI_DOMINIO}
+    depends_on:
+      - api
+    networks: [borde]
+
+  db:
+    build: ./db
+    image: miti-db:18
+    restart: unless-stopped
+    shm_size: 256mb
+    environment:
+      POSTGRES_DB: miti
+      POSTGRES_USER: miti
+      POSTGRES_PASSWORD_FILE: /run/secrets/db_password
+      POSTGRES_INITDB_ARGS: "--data-checksums"
+    secrets: [db_password]
+    # Archivado continuo de WAL con pgBackRest (config en secrets/pgbackrest.conf).
+    command:
+      - postgres
+      - -c
+      - archive_mode=on
+      - -c
+      - archive_command=pgbackrest --stanza=miti archive-push %p
+      - -c
+      - archive_timeout=300
+    volumes:
+      - /srv/miti/data/pg:/var/lib/postgresql
+      - /srv/miti/data/pgbackrest-spool:/var/spool/pgbackrest
+      - /srv/miti/data/pgbackrest-log:/var/log/pgbackrest
+      - /srv/miti/secrets/pgbackrest.conf:/etc/pgbackrest/pgbackrest.conf:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U miti -d miti"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks: [interna, salida_db]
+    # Sin "ports": la base no se expone fuera del servidor.
+    # salida_db solo le da salida a internet (pgBackRest → Object Storage).
+
+  api:
+    build: ../api
+    image: miti-api:dev
+    restart: unless-stopped
+    environment:
+      MITI_ENTORNO: ${MITI_ENTORNO:-prueba}
+      MITI_DB_HOST: db
+      MITI_DB_NOMBRE: miti
+      MITI_DB_USUARIO: miti
+      MITI_DB_CLAVE_ARCHIVO: /run/secrets/db_password
+    secrets: [db_password]
+    depends_on:
+      db:
+        condition: service_healthy
+    networks: [borde, interna]
+
+secrets:
+  db_password:
+    file: /srv/miti/secrets/db_password
+
+networks:
+  borde:
+  interna:
+    internal: true
+  salida_db:

@@ -1,0 +1,30 @@
+# Secretos y entorno: nunca al repositorio
+.env
+*.env
+secrets/
+*.pem
+*.key
+*.jks
+*.keystore
+key.properties
+google-services.json
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
+
+# Flutter / Android
+app/.dart_tool/
+app/build/
+app/.flutter-plugins*
+app/android/.gradle/
+app/android/local.properties
+
+# Varios
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
