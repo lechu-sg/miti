@@ -34,6 +34,8 @@ class Ajustes(BaseSettings):
     minutos_codigo: int = 10
     intentos_codigo: int = 5
     codigos_por_hora: int = 5
+    # Direcciones de prueba: se registran pero no se mandan (evita rebotes).
+    dominios_sin_envio: str = "pruebas.miti.sole.ar"
     edad_minima: int = 13
     limite_gratis_integrantes: int = 5
 

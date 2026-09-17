@@ -97,6 +97,13 @@ async def enviar(
     """Manda un mail y lo deja registrado. Devuelve si salió."""
     cfg = config()
     huella = cripto.huella(destino)
+
+    sin_envio = [d.strip().lower() for d in ajustes().dominios_sin_envio.split(",") if d.strip()]
+    if destino.rsplit("@", 1)[-1].lower() in sin_envio:
+        registro.info("dominio de prueba: no se manda «%s»", asunto)
+        s.add(EnvioCorreo(destino_huella=huella, motivo=motivo, estado="salteado", detalle="dominio de prueba"))
+        return True
+
     if cfg is None:
         registro.warning("no hay SMTP configurado: no se mandó «%s»", asunto)
         s.add(EnvioCorreo(destino_huella=huella, motivo=motivo, estado="sin_smtp", detalle="falta la configuración"))
