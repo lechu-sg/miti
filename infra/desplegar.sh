@@ -14,6 +14,9 @@ echo "código: $ANTES → $DESPUES"
 cd infra
 sudo docker compose up -d --build --remove-orphans
 
+# Migraciones de la base: corren con la imagen recién construida.
+sudo docker compose run --rm --no-deps -T api alembic upgrade head
+
 # La programación de copias viaja en el repositorio.
 if ! cmp -s respaldo/miti-respaldos.cron /etc/cron.d/miti-respaldos; then
   sudo install -o root -g root -m 644 respaldo/miti-respaldos.cron /etc/cron.d/miti-respaldos

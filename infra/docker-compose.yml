@@ -66,7 +66,8 @@ services:
       MITI_DB_NOMBRE: miti
       MITI_DB_USUARIO: miti
       MITI_DB_CLAVE_ARCHIVO: /run/secrets/db_password
-    secrets: [db_password]
+      MITI_CLAVES_ARCHIVO: /run/secrets/claves
+    secrets: [db_password, claves]
     depends_on:
       db:
         condition: service_healthy
@@ -75,6 +76,8 @@ services:
 secrets:
   db_password:
     file: /srv/miti/secrets/db_password
+  claves:
+    file: /srv/miti/secrets/claves.env
 
 networks:
   borde:

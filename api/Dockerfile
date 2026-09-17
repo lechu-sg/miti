@@ -12,6 +12,8 @@ WORKDIR /srv/api
 COPY pyproject.toml ./
 RUN uv sync --no-dev --no-install-project
 
+COPY alembic.ini ./
+COPY migraciones ./migraciones
 COPY miti_api ./miti_api
 
 RUN useradd --system --uid 10001 miti

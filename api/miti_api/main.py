@@ -1,42 +1,51 @@
-"""Esqueleto de la API de Miti (Fase 0): solo /salud y /version."""
+"""API de Miti."""
 
+import logging
 import os
-from pathlib import Path
 
-import asyncpg
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
+from sqlalchemy import text
 
-VERSION = "0.0.1"
-ENTORNO = os.environ.get("MITI_ENTORNO", "desarrollo")
+from .config import ajustes
+from .db import Sesion
+from .rutas import acceso, campanas
 
-app = FastAPI(title="Miti", version=VERSION, docs_url=None, redoc_url=None, openapi_url=None)
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(name)s %(message)s",
+)
+
+VERSION = "0.1.0"
+
+app = FastAPI(
+    title="Miti",
+    version=VERSION,
+    docs_url="/docs" if not ajustes().es_produccion else None,
+    redoc_url=None,
+    openapi_url="/openapi.json" if not ajustes().es_produccion else None,
+)
+
+app.include_router(acceso.ruteador)
+app.include_router(campanas.ruteador)
 
 
-def _clave_db() -> str:
-    return Path(os.environ["MITI_DB_CLAVE_ARCHIVO"]).read_text().strip()
-
-
-@app.get("/salud")
+@app.get("/salud", tags=["servicio"])
 async def salud():
     try:
-        con = await asyncpg.connect(
-            host=os.environ["MITI_DB_HOST"],
-            database=os.environ["MITI_DB_NOMBRE"],
-            user=os.environ["MITI_DB_USUARIO"],
-            password=_clave_db(),
-            timeout=5,
-        )
-        try:
-            await con.fetchval("select 1")
-        finally:
-            await con.close()
+        async with Sesion() as s:
+            await s.execute(text("select 1"))
     except Exception:
         return JSONResponse({"estado": "error", "db": "sin conexion"}, status_code=503)
     return {"estado": "ok", "db": "ok"}
 
 
-@app.get("/version")
+@app.get("/version", tags=["servicio"])
 async def version():
     # La app consulta esto al arrancar para saber si tiene que actualizarse.
-    return {"api": VERSION, "entorno": ENTORNO, "app_minima": None, "app_ultima": None}
+    return {
+        "api": VERSION,
+        "entorno": os.environ.get("MITI_ENTORNO", "desarrollo"),
+        "app_minima": None,
+        "app_ultima": None,
+    }
