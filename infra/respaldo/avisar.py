@@ -30,12 +30,14 @@ def main() -> int:
     asunto = sys.argv[1] if len(sys.argv) > 1 else "Aviso de Miti"
     cuerpo = sys.argv[2] if len(sys.argv) > 2 else sys.stdin.read()
 
-    if not CONFIG.exists():
-        anotar(f"SIN SMTP | {asunto} | {cuerpo}")
+    try:
+        crudo = CONFIG.read_text(encoding="utf-8")
+    except OSError as e:  # no existe, o no corre como root
+        anotar(f"SIN SMTP ({e.__class__.__name__}) | {asunto} | {cuerpo}")
         return 0
     cfg = dict(
         l.strip().split("=", 1)
-        for l in CONFIG.read_text(encoding="utf-8").splitlines()
+        for l in crudo.splitlines()
         if "=" in l and not l.strip().startswith("#")
     )
     destino = cfg.get("AVISOS_PARA", "")
