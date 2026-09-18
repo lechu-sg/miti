@@ -38,6 +38,9 @@ class Ajustes(BaseSettings):
     dominios_sin_envio: str = "pruebas.miti.sole.ar"
     edad_minima: int = 13
     limite_gratis_integrantes: int = 5
+    limite_gratis_numeros: int = 100
+    limite_gratis_ventas: int = 20
+    carpeta_archivos: str = "/srv/miti/data/archivos"
 
     @property
     def url_db(self) -> str:

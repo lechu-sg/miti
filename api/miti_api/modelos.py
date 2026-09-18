@@ -33,6 +33,10 @@ ESTADOS_CAMPANA = ("borrador", "activa", "cerrada", "sorteada", "liquidada", "ar
 ROLES = ("admin", "integrante")
 ESTADOS_INTEGRANTE = ("invitado", "activo", "rechazado", "retirado", "expulsado")
 TIPOS_CAJA = ("principal", "billetera", "efectivo")
+ESTADOS_NUMERO = ("libre", "reservado", "vendido")
+ESTADOS_VENTA = ("confirmada", "anulada")
+TIPOS_MOVIMIENTO = ("cobro", "entrega", "gasto", "reintegro", "liquidacion", "anulacion")
+ESTADOS_MOVIMIENTO = ("pendiente", "confirmado", "rechazado")
 
 
 def _uuid() -> uuid.UUID:
@@ -196,3 +200,125 @@ class EnvioCorreo(Base):
     estado: Mapped[str] = mapped_column(String(20), nullable=False)
     detalle: Mapped[str | None] = mapped_column(Text)
     cuando: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class Comprador(Base):
+    __tablename__ = "compradores"
+    __table_args__ = (Index("ix_compradores_campana_id", "campana_id"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=_uuid)
+    campana_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("campanas.id", ondelete="CASCADE"), nullable=False
+    )
+    nombre_cifrado: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    telefono_cifrado: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    creado_por: Mapped[uuid.UUID] = mapped_column(ForeignKey("usuarios.id"), nullable=False)
+    creado: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class Comprobante(Base):
+    __tablename__ = "comprobantes"
+    __table_args__ = (
+        Index("ix_comprobantes_campana_sha256", "campana_id", "sha256"),
+        Index("ix_comprobantes_campana_nro_operacion", "campana_id", "nro_operacion"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=_uuid)
+    campana_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("campanas.id", ondelete="CASCADE"), nullable=False
+    )
+    ruta_archivo: Mapped[str] = mapped_column(Text, nullable=False)
+    sha256: Mapped[str | None] = mapped_column(String(64))
+    nro_operacion: Mapped[str | None] = mapped_column(String(60))
+    mime: Mapped[str] = mapped_column(String(50), nullable=False)
+    tamano: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    creado_por: Mapped[uuid.UUID] = mapped_column(ForeignKey("usuarios.id"), nullable=False)
+    creado: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class Venta(Base):
+    __tablename__ = "ventas"
+    __table_args__ = (
+        CheckConstraint(_en_lista("estado", ESTADOS_VENTA), name="ventas_estado"),
+        Index("ix_ventas_campana_creada", "campana_id", "creada"),
+        Index("ix_ventas_vendedor", "campana_id", "vendedor_id"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=_uuid)
+    campana_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("campanas.id", ondelete="CASCADE"), nullable=False
+    )
+    vendedor_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("usuarios.id"), nullable=False)
+    comprador_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("compradores.id"), nullable=False)
+    importe: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    estado: Mapped[str] = mapped_column(String(20), nullable=False, default="confirmada")
+    codigo_corto: Mapped[str] = mapped_column(String(10), nullable=False)
+    creada: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    items: Mapped[list["VentaItem"]] = relationship(back_populates="venta", lazy="selectin")
+    comprador: Mapped[Comprador] = relationship(lazy="selectin")
+    vendedor: Mapped[Usuario] = relationship(foreign_keys=[vendedor_id], lazy="selectin")
+
+
+class VentaItem(Base):
+    __tablename__ = "venta_items"
+    __table_args__ = (UniqueConstraint("venta_id", "numero", name="venta_items_unica"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=_uuid)
+    venta_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("ventas.id", ondelete="CASCADE"), nullable=False
+    )
+    numero: Mapped[int] = mapped_column(Integer, nullable=False)
+    precio_unitario: Mapped[int] = mapped_column(BigInteger, nullable=False)
+
+    venta: Mapped[Venta] = relationship(back_populates="items")
+
+
+class Numero(Base):
+    __tablename__ = "numeros"
+    __table_args__ = (
+        CheckConstraint(_en_lista("estado", ESTADOS_NUMERO), name="numeros_estado"),
+        Index("ix_numeros_campana_estado", "campana_id", "estado"),
+    )
+
+    campana_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("campanas.id", ondelete="CASCADE"), primary_key=True
+    )
+    numero: Mapped[int] = mapped_column(Integer, primary_key=True)
+    estado: Mapped[str] = mapped_column(String(20), nullable=False, default="libre")
+    talonario_de: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("usuarios.id"))
+    reserva_vence: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    reservado_por: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("usuarios.id"))
+    reserva_nota: Mapped[str | None] = mapped_column(Text)
+    venta_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("ventas.id", ondelete="SET NULL"))
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    actualizado: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
+class Movimiento(Base):
+    __tablename__ = "movimientos"
+    __table_args__ = (
+        CheckConstraint(_en_lista("tipo", TIPOS_MOVIMIENTO), name="movimientos_tipo"),
+        CheckConstraint(_en_lista("estado", ESTADOS_MOVIMIENTO), name="movimientos_estado"),
+        Index("ix_movimientos_campana_tipo_estado", "campana_id", "tipo", "estado"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=_uuid)
+    campana_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("campanas.id", ondelete="CASCADE"), nullable=False
+    )
+    tipo: Mapped[str] = mapped_column(String(20), nullable=False)
+    caja_origen: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("cajas.id"))
+    caja_destino: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("cajas.id"))
+    importe: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    estado: Mapped[str] = mapped_column(String(20), nullable=False)
+    requiere_aprobacion_de: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("usuarios.id"))
+    aprobado_por: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("usuarios.id"))
+    motivo: Mapped[str | None] = mapped_column(Text)
+    venta_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("ventas.id"))
+    anula_a: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("movimientos.id"))
+    comprobante_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("comprobantes.id"))
+    creado_por: Mapped[uuid.UUID] = mapped_column(ForeignKey("usuarios.id"), nullable=False)
+    creado: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

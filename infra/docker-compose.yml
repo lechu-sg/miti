@@ -70,6 +70,8 @@ services:
       MITI_CLAVES_ARCHIVO: /run/secrets/claves
       MITI_SMTP_ARCHIVO: /run/secrets/smtp
     secrets: [db_password, claves, smtp]
+    volumes:
+      - /srv/miti/data/archivos:/srv/miti/data/archivos
     depends_on:
       db:
         condition: service_healthy

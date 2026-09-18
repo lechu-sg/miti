@@ -23,6 +23,7 @@ from ..esquemas import (
 )
 from ..modelos import Caja, Campana, Historial, Integrante, Usuario
 from ..seguridad import Contexto, contexto_activo, contexto_admin, contexto_campana, usuario_actual
+from .rifas import asegurar_numeros
 
 ruteador = APIRouter(tags=["campañas"])
 
@@ -216,8 +217,10 @@ async def cambiar_estado(
         raise HTTPException(
             status.HTTP_409_CONFLICT, f"no se puede pasar de «{actual}» a «{datos.estado}»"
         )
-    if datos.estado == "activa" and ctx.campana.tipo == "rifa" and not ctx.campana.config:
-        raise HTTPException(status.HTTP_409_CONFLICT, "la rifa no tiene configuración")
+    if datos.estado == "activa" and ctx.campana.tipo == "rifa":
+        if not ctx.campana.config:
+            raise HTTPException(status.HTTP_409_CONFLICT, "la rifa no tiene configuración")
+        await asegurar_numeros(s, ctx.campana)
     ctx.campana.estado = datos.estado
     s.add(
         Historial(

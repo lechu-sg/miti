@@ -129,3 +129,119 @@ class InvitacionSalida(BaseModel):
     invitado_por: str | None
     invitado: datetime
     estado: str
+
+
+# --- Fase 2: Rifa, Números, Ventas y Comprobantes ---
+
+
+class NumeroSalida(BaseModel):
+    numero: int
+    estado: str
+    reserva_vence: datetime | None = None
+    reserva_nota: str | None = None
+    reservado_por_mi: bool = False
+    vendedor_nombre: str | None = None
+
+
+class ReservarNumero(BaseModel):
+    nota: str | None = Field(default=None, max_length=120)
+
+
+class CompradorEntrada(BaseModel):
+    nombre: str = Field(min_length=2, max_length=80)
+    telefono: str = Field(min_length=6, max_length=30)
+
+
+class CompradorSalida(BaseModel):
+    id: uuid.UUID
+    nombre: str
+    telefono: str | None = None
+
+
+class NuevaVenta(BaseModel):
+    id: uuid.UUID | None = None
+    numeros: list[int] = Field(min_length=1)
+    comprador: CompradorEntrada
+    destino_cobro: Literal["billetera", "efectivo", "cuenta_principal", "adeudado"] = "efectivo"
+    importe_cobrado: int | None = Field(default=None, ge=0)
+    comprobante_id: uuid.UUID | None = None
+
+
+class VentaSalida(BaseModel):
+    id: uuid.UUID
+    campana_id: uuid.UUID
+    vendedor_id: uuid.UUID
+    vendedor_nombre: str
+    comprador: CompradorSalida
+    numeros: list[int]
+    importe: int
+    estado: str
+    codigo_corto: str
+    creada: datetime
+    total_cobrado: int
+    cobro_pendiente: int
+    saldo_adeudado: int
+
+
+class NuevoCobro(BaseModel):
+    caja_tipo: Literal["billetera", "efectivo", "cuenta_principal"]
+    importe: int = Field(gt=0)
+    comprobante_id: uuid.UUID | None = None
+
+
+class MovimientoSalida(BaseModel):
+    id: uuid.UUID
+    campana_id: uuid.UUID
+    tipo: str
+    caja_origen: uuid.UUID | None = None
+    caja_destino: uuid.UUID | None = None
+    importe: int
+    estado: str
+    requiere_aprobacion_de: uuid.UUID | None = None
+    aprobado_por: uuid.UUID | None = None
+    motivo: str | None = None
+    venta_id: uuid.UUID | None = None
+    comprobante_id: uuid.UUID | None = None
+    creado_por: uuid.UUID
+    creado: datetime
+
+
+class RechazarMovimiento(BaseModel):
+    motivo: str = Field(min_length=3, max_length=200)
+
+
+class SubirComprobante(BaseModel):
+    archivo_base64: str
+    mime: str = Field(default="image/jpeg", max_length=50)
+    nro_operacion: str | None = Field(default=None, max_length=60)
+
+
+class ComprobanteSalida(BaseModel):
+    id: uuid.UUID
+    sha256: str | None = None
+    nro_operacion: str | None = None
+    mime: str
+    tamano: int
+    creado: datetime
+    duplicado_aviso: str | None = None
+
+
+class RecaudacionCaja(BaseModel):
+    caja_id: uuid.UUID
+    tipo: str
+    titular_id: uuid.UUID
+    titular_nombre: str
+    confirmado: int
+    pendiente: int
+
+
+class RecaudacionSalida(BaseModel):
+    cobrado: int
+    pendiente: int
+    vendido: int
+    falta_cobrar: int
+    numeros_totales: int
+    numeros_libres: int
+    numeros_reservados: int
+    numeros_vendidos: int
+    cajas: list[RecaudacionCaja]
