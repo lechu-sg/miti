@@ -120,26 +120,21 @@ Antes de publicar una versión nueva, subí `version:` en `app/pubspec.yaml`. La
   - Migración 0003 aplicada en la base del VPS.
   - Pruebas de API: `prueba_fase1.py` (39/39 en verde) y `prueba_fase2.py` (55/55 en verde).
 
-- **Campañas de Venta de Productos (Opción 1): HECHA.**
+- **Campañas de Venta de Productos (Opción 1): HECHA y AJUSTADA (v0.3.1).**
   - Migración 0004 aplicada en el VPS (`productos`, items con producto/cantidad, columna `entrega` en `ventas`).
   - Endpoints implementados y probados: catálogo (`GET/POST/PATCH /campanas/{id}/productos`), venta de productos (`POST /campanas/{id}/ventas/productos`), actualización de entrega (`PATCH /campanas/{id}/ventas/{id}/entrega`), recaudación con desglose de productos.
-  - Prueba de API: `prueba_productos.py` (40/40 en verde).
-  - App móvil Flutter (v0.3.0+6):
-    - `PantallaCatalogoProductos`: alta, edición y toggle activo/pausado de productos con precios en formato Talonario.
-    - `PantallaVentaProductos`: selector de cantidades `[-] cant [+]`, subtotal en vivo, datos del comprador, destino de cobro, estado de entrega inicial y botón sello.
-    - `PantallaCampana`: soporte completo de tipo `productos`, desglose de productos vendidos, lista de pedidos con chip interactivo de entrega (`📦 PEDIDO` / `✓ ENTREGADO`).
-    - `PantallaBillete`: comprobante adaptado para productos (cantidades, nombres, subtotales, entrega) con auto-compartir en WhatsApp (imagen PNG + mensaje formateado).
-    - `flutter analyze`: limpio (0 issues), `flutter test`: 3/3 en verde.
-  - **Última APK publicada:** `https://miti.sole.ar/descargas/miti-0.3.0.apk` (hash SHA256 `98D773746D4DDC9D830AD7CAE3C7B2BC577A9EC5CFFF4BDC8EEA6BB2E5BE9EEF`).
+  - Regla financiera unificada de cobros: si quien vende es el titular de la cuenta principal de la campaña (sea o no admin), cuando elige "cuenta principal" o "en mi billetera", el dinero ingresa a la caja `principal` y queda `confirmado` al instante sin requerir auto-aprobación. Si vende otro participante a la cuenta principal, queda `pendiente` requiriendo confirmación del titular de la cuenta.
+  - Hojas modales (`MitiHoja`) ajustadas con `viewInsets.bottom` para que el teclado nunca tape los campos de texto ni los botones. Errores mostrados inline dentro de la hoja.
+  - Pruebas de API: `prueba_fase1.py` (39/39), `prueba_fase2.py` (55/55), `prueba_productos.py` (43/43).
+  - App móvil Flutter (v0.3.1+7): `flutter analyze` 0 issues, `flutter test` 3/3 en verde.
+  - **Última APK publicada:** `https://miti.sole.ar/descargas/miti-0.3.1.apk` (hash SHA256 `D758EFC134864C17F761DEF27C2E34255593A18EAAA2023F1BFE45E07A9CF52F`).
 
 ## 7. Pasos a seguir, en orden
 
-1. **El usuario prueba la APK 0.3.0 en el celular**:
-   - Crear o ingresar a una campaña de productos.
-   - Administrar el catálogo de productos (crear, editar precios, pausar/activar).
-   - Registrar una venta/pedido de productos con cantidades múltiples y ver cómo se abre WhatsApp con el comprobante.
-   - Marcar pedidos como entregados desde la pantalla de la campaña.
-   - Comprobar los números de recaudación y desglose de productos vendidos.
+1. **El usuario prueba la APK 0.3.1 en el celular**:
+   - Verificar que al agregar o editar productos el teclado ya no tape la descripción ni el precio.
+   - Probar una venta siendo dueño de la cuenta principal a cuenta principal o mi cuenta (debe quedar confirmada al instante).
+   - Probar que si vende otro participante a cuenta principal, sí pida confirmación.
 2. **Siguiente fase (Fase 3)**:
    - Modo sin señal / offline: drift (SQLite) en el celular.
    - Cola de operaciones (outbox) con UUIDs de idempotencia.
