@@ -883,6 +883,7 @@ async def ver_recaudacion(
                 confirmado=c_confirmado,
                 pendiente=c_pendiente,
             )
+        )
     # 5. Desglose de productos si es campaña de productos
     productos_desglose = []
     if ctx.campana.tipo == "productos":
