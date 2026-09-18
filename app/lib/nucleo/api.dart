@@ -152,6 +152,53 @@ class ApiMiti {
   Future<Map<String, dynamic>> responderInvitacion(String id, bool acepta) async =>
       (await pedir('POST', '/campanas/$id/invitacion',
           cuerpo: {'respuesta': acepta ? 'acepto' : 'rechazo'})) as Map<String, dynamic>;
+
+  // --- Fase 2: Rifas, números, ventas y recaudación ---
+
+  Future<List<dynamic>> numeros(String campanaId) async =>
+      (await pedir('GET', '/campanas/$campanaId/numeros')) as List<dynamic>;
+
+  Future<Map<String, dynamic>> reservarNumero(String campanaId, int numero, {String? nota}) async =>
+      (await pedir('POST', '/campanas/$campanaId/numeros/$numero/reservar',
+          cuerpo: {'nota': nota})) as Map<String, dynamic>;
+
+  Future<Map<String, dynamic>> liberarNumero(String campanaId, int numero) async =>
+      (await pedir('POST', '/campanas/$campanaId/numeros/$numero/liberar')) as Map<String, dynamic>;
+
+  Future<Map<String, dynamic>> registrarVenta(String campanaId, Map<String, dynamic> datos) async =>
+      (await pedir('POST', '/campanas/$campanaId/ventas', cuerpo: datos)) as Map<String, dynamic>;
+
+  Future<List<dynamic>> ventas(String campanaId) async =>
+      (await pedir('GET', '/campanas/$campanaId/ventas')) as List<dynamic>;
+
+  Future<Map<String, dynamic>> detalleVenta(String campanaId, String ventaId) async =>
+      (await pedir('GET', '/campanas/$campanaId/ventas/$ventaId')) as Map<String, dynamic>;
+
+  Future<Map<String, dynamic>> registrarCobro(
+          String campanaId, String ventaId, Map<String, dynamic> datos) async =>
+      (await pedir('POST', '/campanas/$campanaId/ventas/$ventaId/cobros', cuerpo: datos))
+          as Map<String, dynamic>;
+
+  Future<List<dynamic>> movimientos(String campanaId, {String? estado}) async {
+    final ruta = estado != null ? '/campanas/$campanaId/movimientos?estado=$estado' : '/campanas/$campanaId/movimientos';
+    return (await pedir('GET', ruta)) as List<dynamic>;
+  }
+
+  Future<Map<String, dynamic>> confirmarMovimiento(String campanaId, String movimientoId) async =>
+      (await pedir('POST', '/campanas/$campanaId/movimientos/$movimientoId/confirmar'))
+          as Map<String, dynamic>;
+
+  Future<Map<String, dynamic>> rechazarMovimiento(
+          String campanaId, String movimientoId, String motivo) async =>
+      (await pedir('POST', '/campanas/$campanaId/movimientos/$movimientoId/rechazar',
+          cuerpo: {'motivo': motivo})) as Map<String, dynamic>;
+
+  Future<Map<String, dynamic>> recaudacion(String campanaId) async =>
+      (await pedir('GET', '/campanas/$campanaId/recaudacion')) as Map<String, dynamic>;
+
+  Future<Map<String, dynamic>> subirComprobante(String campanaId, Map<String, dynamic> datos) async =>
+      (await pedir('POST', '/campanas/$campanaId/comprobantes', cuerpo: datos))
+          as Map<String, dynamic>;
 }
 
 /// Un error que vino de la API, ya traducido a algo que se le puede mostrar a la gente.

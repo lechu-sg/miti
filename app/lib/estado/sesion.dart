@@ -53,3 +53,23 @@ final invitacionesProvider = FutureProvider.autoDispose<List<dynamic>>((ref) asy
 final campanaProvider = FutureProvider.autoDispose.family<Map<String, dynamic>, String>((ref, id) async {
   return ref.watch(apiProvider).campana(id);
 });
+
+final numerosProvider =
+    FutureProvider.autoDispose.family<List<dynamic>, String>((ref, id) async {
+  return ref.watch(apiProvider).numeros(id);
+});
+
+final ventasProvider =
+    FutureProvider.autoDispose.family<List<dynamic>, String>((ref, id) async {
+  return ref.watch(apiProvider).ventas(id);
+});
+
+final movimientosProvider =
+    FutureProvider.autoDispose.family<List<dynamic>, String>((ref, id) async {
+  return ref.watch(apiProvider).movimientos(id);
+});
+
+final recaudacionProvider =
+    FutureProvider.autoDispose.family<Map<String, dynamic>, String>((ref, id) async {
+  return ref.watch(apiProvider).recaudacion(id);
+});

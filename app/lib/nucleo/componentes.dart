@@ -394,3 +394,264 @@ void mostrarAviso(BuildContext context, String mensaje, {bool error = false}) {
       ),
     );
 }
+
+/// Celda de número en la grilla de rifa.
+class MitiCeldaNumero extends StatelessWidget {
+  const MitiCeldaNumero({
+    super.key,
+    required this.numero,
+    required this.estado,
+    this.seleccionado = false,
+    this.onTap,
+  });
+
+  final int numero;
+  final String estado; // libre, reservado, vendido
+  final bool seleccionado;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.color;
+    final t = context.texto;
+
+    Color fondo;
+    Color bordeColor;
+    Color letraColor;
+    bool punteado = false;
+
+    if (seleccionado) {
+      fondo = c.sello;
+      bordeColor = c.sello;
+      letraColor = Colors.white;
+    } else if (estado == 'vendido') {
+      fondo = c.vendido;
+      bordeColor = Colors.transparent;
+      letraColor = c.vendidoTexto;
+    } else if (estado == 'reservado') {
+      fondo = Colors.transparent;
+      bordeColor = c.sello;
+      letraColor = c.selloTexto;
+      punteado = true;
+    } else {
+      // libre
+      fondo = Colors.transparent;
+      bordeColor = c.tinta;
+      letraColor = c.tinta;
+    }
+
+    final textoFormateado = numero.toString().padLeft(2, '0');
+
+    return InkWell(
+      onTap: estado == 'vendido' ? null : onTap,
+      borderRadius: BorderRadius.circular(3),
+      child: Container(
+        height: 32,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: fondo,
+          borderRadius: BorderRadius.circular(3),
+          border: punteado
+              ? Border.all(color: bordeColor, width: 1.5, strokeAlign: BorderSide.strokeAlignCenter)
+              : (bordeColor != Colors.transparent ? Border.all(color: bordeColor, width: 1.5) : null),
+        ),
+        child: Text(
+          textoFormateado,
+          style: t.cifra.copyWith(
+            color: letraColor,
+            fontSize: 16,
+            height: 1,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Selector de destino del dinero (grilla 2x2).
+class MitiDestinoDinero extends StatelessWidget {
+  const MitiDestinoDinero({
+    super.key,
+    required this.seleccionado,
+    required this.onCambio,
+  });
+
+  final String seleccionado; // billetera, efectivo, cuenta_principal, adeudado
+  final ValueChanged<String> onCambio;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: _opcion(
+                context,
+                clave: 'efectivo',
+                titulo: 'En efectivo',
+                aclaracion: 'Lo tenés vos',
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: _opcion(
+                context,
+                clave: 'billetera',
+                titulo: 'En mi billetera',
+                aclaracion: 'En tu cuenta propia',
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(
+              child: _opcion(
+                context,
+                clave: 'cuenta_principal',
+                titulo: 'Cuenta principal',
+                aclaracion: 'Pasa a confirmar',
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: _opcion(
+                context,
+                clave: 'adeudado',
+                titulo: 'Todavía no pagó',
+                aclaracion: 'Queda adeudado',
+                esDeuda: true,
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _opcion(
+    BuildContext context, {
+    required String clave,
+    required String titulo,
+    required String aclaracion,
+    bool esDeuda = false,
+  }) {
+    final c = context.color;
+    final t = context.texto;
+    final activa = seleccionado == clave;
+
+    return InkWell(
+      onTap: () => onCambio(clave),
+      borderRadius: BorderRadius.circular(6),
+      child: Container(
+        height: 56,
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        decoration: BoxDecoration(
+          color: activa ? c.tinta : Colors.transparent,
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(
+            color: activa ? c.tinta : (esDeuda ? c.sello : c.tinta),
+            width: 1.5,
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              titulo,
+              style: t.etiqueta.copyWith(
+                color: activa ? c.tintaSobre : (esDeuda ? c.selloTexto : c.tinta),
+                fontWeight: FontWeight.w700,
+                fontSize: 13,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              aclaracion,
+              style: t.pie.copyWith(
+                color: activa ? c.tintaSobre.withValues(alpha: 0.75) : c.tintaSuave,
+                fontSize: 11,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Contenedor estándar para hojas inferiores (bottom sheets) de Talonario.
+class MitiHoja extends StatelessWidget {
+  const MitiHoja({
+    super.key,
+    required this.titulo,
+    required this.child,
+    this.subtitulo,
+  });
+
+  final String titulo;
+  final String? subtitulo;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.color;
+    final t = context.texto;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: c.hoja,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+        boxShadow: [
+          BoxShadow(
+            color: c.tinta.withValues(alpha: 0.12),
+            blurRadius: 30,
+            offset: const Offset(0, -12),
+          ),
+        ],
+      ),
+      child: SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const MitiTroquel(grosor: 2),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 12, 12),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (subtitulo != null) ...[
+                          Text(subtitulo!.toUpperCase(), style: t.sobrelinea.copyWith(color: c.tintaSuave)),
+                          const SizedBox(height: 2),
+                        ],
+                        Text(titulo, style: t.seccion.copyWith(color: c.tinta)),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    icon: Icon(Icons.close, color: c.tinta),
+                  ),
+                ],
+              ),
+            ),
+            Flexible(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+                child: child,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
