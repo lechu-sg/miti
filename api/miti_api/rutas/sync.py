@@ -507,12 +507,13 @@ async def sync_push(
 @ruteador.get("/campanas/{campana_id}/sync/pull", response_model=SyncPullSalida)
 async def sync_pull(
     desde: int = Query(default=0, ge=0),
+    snapshot: bool = Query(default=False),
     ctx: Contexto = Depends(contexto_activo),
     s: AsyncSession = Depends(sesion),
 ) -> SyncPullSalida:
-    """Descarga los cambios de la campaña desde una secuencia (o snapshot completo si desde=0)."""
-    # Si desde == 0: hidratación completa inicial para la base de datos local
-    if desde == 0:
+    """Descarga los cambios de la campaña desde una secuencia (o snapshot completo si snapshot=True)."""
+    # Si snapshot=True: hidratación completa inicial para la base de datos local
+    if snapshot:
         # Cargar números
         nums = (
             await s.execute(
