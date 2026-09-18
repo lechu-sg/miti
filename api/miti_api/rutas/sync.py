@@ -39,7 +39,7 @@ from ..modelos import (
     Venta,
     VentaItem,
 )
-from .acceso import Contexto, contexto_activo
+from ..seguridad import Contexto, contexto_activo
 from .rifas import _generar_codigo_corto
 
 ruteador = APIRouter(tags=["sync"])
