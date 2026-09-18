@@ -87,8 +87,13 @@ probar("menor de 13 rechazado", 403, llamar("POST", "/acceso/verificar", cuerpo=
 
 sin_datos = f"nuevo.{sello}@pruebas.miti.sole.ar"
 llamar("POST", "/acceso/codigo", cuerpo={"email": sin_datos})
+codigo_nuevo = codigo_de(sin_datos)
 probar("cuenta nueva sin nombre ni fecha", 422, llamar("POST", "/acceso/verificar", cuerpo={
-    "email": sin_datos, "codigo": codigo_de(sin_datos)})[0])
+    "email": sin_datos, "codigo": codigo_nuevo})[0])
+# El pedido anterior NO puede quemar el código: la app vuelve con los datos y el mismo código.
+probar("el mismo código sigue sirviendo después del 422", 200, llamar("POST", "/acceso/verificar", cuerpo={
+    "email": sin_datos, "codigo": codigo_nuevo,
+    "nombre": "Dani Prueba", "nacimiento": "1995-08-08"})[0])
 
 print("== 3. perfil")
 est, r = llamar("GET", "/yo", t1)

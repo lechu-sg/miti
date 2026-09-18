@@ -105,20 +105,21 @@ async def verificar(datos: Verificar, s: AsyncSession = Depends(sesion)) -> Toke
         await s.commit()
         raise invalido
 
-    fila.usado = datetime.now(UTC)
-
     usuario = (
         await s.execute(select(Usuario).where(Usuario.email_huella == huella))
     ).scalar_one_or_none()
 
     if usuario is None:
         if not datos.nombre or not datos.nacimiento:
-            await s.commit()
+            # Cuenta nueva: la app va a volver con los datos y con ESTE MISMO código,
+            # así que no se puede quemar acá.
+            await s.rollback()
             raise HTTPException(
                 status.HTTP_422_UNPROCESSABLE_ENTITY,
                 "para crear la cuenta hacen falta el nombre y la fecha de nacimiento",
             )
         if _edad(datos.nacimiento) < ajustes().edad_minima:
+            fila.usado = datetime.now(UTC)
             await s.commit()
             raise HTTPException(
                 status.HTTP_403_FORBIDDEN,
@@ -134,9 +135,11 @@ async def verificar(datos: Verificar, s: AsyncSession = Depends(sesion)) -> Toke
         await s.flush()
         s.add(Historial(actor_id=usuario.id, accion="cuenta_creada", objeto="usuario", objeto_id=usuario.id))
     elif usuario.baja is not None:
+        fila.usado = datetime.now(UTC)
         await s.commit()
         raise HTTPException(status.HTTP_403_FORBIDDEN, "la cuenta está dada de baja")
 
+    fila.usado = datetime.now(UTC)
     usuario.ultimo_acceso = datetime.now(UTC)
     token, vence = crear_token(usuario.id)
     refresco = await crear_refresco(s, usuario.id, datos.dispositivo)
