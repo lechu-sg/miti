@@ -582,6 +582,9 @@ async def detalle_venta(
         entrega=venta.entrega,
         codigo_corto=venta.codigo_corto,
         creada=venta.creada,
+        total_cobrado=confirmado,
+        cobro_pendiente=pendiente,
+        saldo_adeudado=saldo,
     )
 
 
