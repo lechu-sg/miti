@@ -115,35 +115,25 @@ Antes de publicar una versión nueva, subí `version:` en `app/pubspec.yaml`. La
 ## 6. Estado actual (18/09/2026)
 
 - **Fase 0 (infra, respaldos, correo): HECHA.** mail-tester da 10/10 y la restauración está probada.
-- **Fase 1 (cuentas, campañas, invitaciones, cajas):**
-  - La API está hecha y probada (39/39).
-  - La app tiene las pantallas de ingreso, lista de campañas, nueva campaña y detalle con invitación.
-  - Última APK: `https://miti.sole.ar/descargas/miti-0.1.0.apk` (commit `56216e2`, publicada en `e97e901`).
-  - **El usuario la está probando en el celular.** Primero atendé lo que reporte.
+- **Fase 1 (cuentas, campañas, invitaciones, cajas): HECHA y probada en el celular.**
+- **Fase 2 (rifa, números, ventas, cobros, billete y comprobantes): HECHA.**
+  - Migración 0003 aplicada en la base del VPS.
+  - API ampliada con rutas para números (libres, reservados por 48h, vendidos), ventas con compradores cifrados, destinos de fondos (billetera, efectivo, cuenta principal), subida de comprobantes con hash y detección de duplicados, y métricas de recaudación.
+  - Pruebas de API: `prueba_fase1.py` (39/39 en verde) y `prueba_fase2.py` (55/55 en verde).
+  - App móvil actualizada con componentes Talonario: grilla interactiva de 10 columnas, selector de destino del dinero, registro de ventas, talón/billete para WhatsApp y pantalla para compartir disponibles en historias/post.
+  - **Última APK publicada:** `https://miti.sole.ar/descargas/miti-0.2.0.apk` (commit `6f72f96`).
 
 ## 7. Pasos a seguir, en orden
 
-1. **Preguntale al usuario cómo le fue con la APK 0.1.0**: si pudo invitar y cómo se ve el modo oscuro. Si reporta un problema:
-   - Reproducilo y corregilo.
-   - Corré `flutter analyze` y `flutter test`.
-   - Hacé commit, generá la APK y republicala (sección 4).
-   - Si la corrección es una regla de diseño, agregala a la skill.
-2. **Pendientes del usuario** (recordáselos; no los hagas vos):
-   - Poner una dirección real en `AVISOS_PARA` dentro de `/srv/miti/secrets/smtp.env`. Hoy tiene un valor de ejemplo. Después, probá una alerta con `infra/respaldo/avisar.py`.
-   - Confirmar que regeneró la **master key de Backblaze B2**. La primera que pasó era la maestra.
-   - Guardar las contraseñas de cifrado de pgBackRest (repo1/2 y repo3) en un gestor de contraseñas. Hoy solo están en el servidor.
-3. **Limpieza opcional** (pedí permiso antes): borrar `/srv/miti/app.viejo-20260917` en el VPS y la carpeta vieja `C:\Users\SERGIO\.gradle`.
-4. **Fase 2**, cuando el usuario lo apruebe. Leé primero la sección de fases y el modelo de datos de `DEFINICION.md`. El alcance es:
-   - **Números de rifa:** estados disponible / reservado (48 h, se muestra como vendido) / vendido. Asignación "bolsa" por defecto.
-   - **Venta:** nombre y teléfono del comprador, y **destino de la plata** (cuenta principal, billetera o efectivo de un integrante). Queda registrada en el historial.
-   - **Comprobantes de pago** (imagen adjunta).
-   - **Imagen del ticket** para el comprador.
-   - **Imagen de números disponibles:** fondo que sube el usuario (más claro), N números por imagen, y los vendidos quedan como casillas en blanco.
-   - El orden de trabajo es:
-     1. Proponer el diseño de tablas y endpoints y confirmarlo con el usuario.
-     2. Escribir la migración 0003 y la API.
-     3. Ampliar la prueba de punta a punta.
-     4. Desplegar.
-     5. Hacer las pantallas.
-     6. Publicar la APK.
-5. **Al terminar cada tanda**, actualizá este archivo (sección 6) para que quien siga sepa dónde quedó.
+1. **El usuario prueba la APK 0.2.0 en el celular**:
+   - Crear o activar una rifa (se autogeneran los números).
+   - Probar la grilla de números (filtros, selección, reservar por 48 h y liberar).
+   - Registrar una venta en efectivo o billetera y ver cómo se genera el billete.
+   - Registrar una venta con destino "cuenta principal" y verificar que al titular le aparece el aviso para confirmarla.
+   - Probar la pantalla de "Compartir disponibles" (historias 9:16 y post 4:5).
+   - Atender cualquier detalle de uso o diseño que reporte.
+2. **Fase 3**, cuando el usuario dé el visto bueno a la APK 0.2.0:
+   - Modo sin señal / offline: drift (SQLite) en el celular.
+   - Cola de operaciones (outbox) con UUIDs de idempotencia.
+   - Sincronización `POST /sync/push` y `GET /sync/pull?desde=<secuencia>`.
+   - Resolución de conflictos en ventas de números simultáneas sin conexión.
