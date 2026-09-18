@@ -10,14 +10,14 @@ from sqlalchemy import text
 
 from .config import ajustes
 from .db import Sesion
-from .rutas import acceso, campanas, comprobantes, productos, rifas, sync
+from .rutas import acceso, campanas, comprobantes, liquidacion, productos, rifas, sync
 
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s %(levelname)s %(name)s %(message)s",
 )
 
-VERSION = "0.4.0"
+VERSION = "0.5.0"
 
 app = FastAPI(
     title="Miti",
@@ -42,6 +42,7 @@ app.include_router(rifas.ruteador)
 app.include_router(productos.ruteador)
 app.include_router(comprobantes.ruteador)
 app.include_router(sync.ruteador)
+app.include_router(liquidacion.ruteador)
 
 
 @app.get("/salud", tags=["servicio"])

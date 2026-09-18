@@ -332,3 +332,65 @@ class SyncPullSalida(BaseModel):
     cambios: list[dict] = []
     snapshot: dict | None = None
 
+
+# Liquidación y Cierre (§3.9)
+class ParticipanteLiquidacion(BaseModel):
+    usuario_id: uuid.UUID
+    nombre: str
+    en_mano: int
+    gastos_bolsillo: int = 0
+    parte: int
+    saldo: int  # > 0 debe pagar, < 0 debe recibir
+
+
+class TransferenciaSugerida(BaseModel):
+    id: uuid.UUID | None = None
+    de_usuario_id: uuid.UUID
+    de_nombre: str
+    a_usuario_id: uuid.UUID
+    a_nombre: str
+    importe: int
+    estado: str = "pendiente"  # pendiente, pagada, confirmada
+    comprobante_id: uuid.UUID | None = None
+    actualizada: datetime | None = None
+
+
+class OpcionLiquidacion(BaseModel):
+    base: str
+    recaudado: int
+    gastos: int
+    neto: int
+    parte: int
+    participantes: list[ParticipanteLiquidacion]
+    transferencias: list[TransferenciaSugerida]
+
+
+class SimulacionLiquidacionSalida(BaseModel):
+    puede_liquidar: bool
+    impedimentos: list[str]
+    cobrada: OpcionLiquidacion
+    vendida: OpcionLiquidacion
+
+
+class ConfirmarLiquidacionEntrada(BaseModel):
+    base: str = Field(pattern="^(cobrada|vendida)$")
+
+
+class LiquidacionSalida(BaseModel):
+    campana_id: uuid.UUID
+    base: str
+    neto: int
+    parte: int
+    recaudado: int
+    gastos: int
+    detalle: dict
+    confirmada_por: uuid.UUID
+    confirmada_por_nombre: str | None = None
+    creada: datetime
+    transferencias: list[TransferenciaSugerida]
+
+
+class ActualizarTransferenciaEntrada(BaseModel):
+    accion: str = Field(pattern="^(pagar|confirmar)$")
+    comprobante_id: uuid.UUID | None = None
+

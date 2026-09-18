@@ -31,8 +31,8 @@ ruteador = APIRouter(tags=["campañas"])
 PASOS = {
     "borrador": {"activa", "archivada"},
     "activa": {"cerrada"},
-    "cerrada": {"sorteada", "activa"},
-    "sorteada": {"archivada"},
+    "cerrada": {"sorteada", "activa", "liquidada"},
+    "sorteada": {"liquidada", "archivada"},
     "liquidada": {"archivada"},
 }
 

@@ -121,6 +121,8 @@ class Campana(Base):
     integrantes: Mapped[list["Integrante"]] = relationship(back_populates="campana", lazy="selectin")
     cajas: Mapped[list["Caja"]] = relationship(back_populates="campana", lazy="selectin")
     productos: Mapped[list["Producto"]] = relationship(back_populates="campana", lazy="selectin")
+    liquidacion: Mapped["Liquidacion | None"] = relationship(back_populates="campana", uselist=False, lazy="selectin")
+    transferencias_liq: Mapped[list["TransferenciaLiquidacion"]] = relationship(back_populates="campana", lazy="selectin")
 
 
 class Integrante(Base):
@@ -368,4 +370,53 @@ class SyncLog(Base):
     op: Mapped[str] = mapped_column(String(10), nullable=False)
     datos: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
     creado: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class Liquidacion(Base):
+    """Cierre contable único de la campaña (§3.9 de DEFINICION.md)."""
+
+    __tablename__ = "liquidaciones"
+
+    campana_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("campanas.id", ondelete="CASCADE"), primary_key=True
+    )
+    base: Mapped[str] = mapped_column(String(20), nullable=False)
+    neto: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    parte: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    recaudado: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    gastos: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
+    detalle: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    confirmada_por: Mapped[uuid.UUID] = mapped_column(ForeignKey("usuarios.id"), nullable=False)
+    creada: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    campana: Mapped["Campana"] = relationship(back_populates="liquidacion")
+    confirmador: Mapped["Usuario"] = relationship(foreign_keys=[confirmada_por], lazy="selectin")
+
+
+class TransferenciaLiquidacion(Base):
+    """Transferencia sugerida para equilibrar los saldos del grupo tras la liquidación."""
+
+    __tablename__ = "transferencias_liq"
+    __table_args__ = (
+        Index("ix_transferencias_liq_campana_estado", "campana_id", "estado"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=_uuid)
+    campana_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("campanas.id", ondelete="CASCADE"), nullable=False
+    )
+    de_usuario_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("usuarios.id"), nullable=False)
+    a_usuario_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("usuarios.id"), nullable=False)
+    importe: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    estado: Mapped[str] = mapped_column(String(20), nullable=False, default="pendiente")
+    comprobante_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("comprobantes.id", ondelete="SET NULL")
+    )
+    actualizada: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+    campana: Mapped["Campana"] = relationship(back_populates="transferencias_liq")
+    de_usuario: Mapped["Usuario"] = relationship(foreign_keys=[de_usuario_id], lazy="selectin")
+    a_usuario: Mapped["Usuario"] = relationship(foreign_keys=[a_usuario_id], lazy="selectin")
 
