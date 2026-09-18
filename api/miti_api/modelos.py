@@ -35,6 +35,7 @@ ESTADOS_INTEGRANTE = ("invitado", "activo", "rechazado", "retirado", "expulsado"
 TIPOS_CAJA = ("principal", "billetera", "efectivo")
 ESTADOS_NUMERO = ("libre", "reservado", "vendido")
 ESTADOS_VENTA = ("confirmada", "anulada")
+ESTADOS_ENTREGA = ("pedido", "entregado")
 TIPOS_MOVIMIENTO = ("cobro", "entrega", "gasto", "reintegro", "liquidacion", "anulacion")
 ESTADOS_MOVIMIENTO = ("pendiente", "confirmado", "rechazado")
 
@@ -119,6 +120,7 @@ class Campana(Base):
 
     integrantes: Mapped[list["Integrante"]] = relationship(back_populates="campana", lazy="selectin")
     cajas: Mapped[list["Caja"]] = relationship(back_populates="campana", lazy="selectin")
+    productos: Mapped[list["Producto"]] = relationship(back_populates="campana", lazy="selectin")
 
 
 class Integrante(Base):
@@ -236,10 +238,28 @@ class Comprobante(Base):
     creado: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
+class Producto(Base):
+    __tablename__ = "productos"
+    __table_args__ = (Index("ix_productos_campana_activo", "campana_id", "activo"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=_uuid)
+    campana_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("campanas.id", ondelete="CASCADE"), nullable=False
+    )
+    nombre: Mapped[str] = mapped_column(String(100), nullable=False)
+    precio: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    foto: Mapped[str | None] = mapped_column(Text)
+    activo: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    creado: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    campana: Mapped["Campana"] = relationship(back_populates="productos")
+
+
 class Venta(Base):
     __tablename__ = "ventas"
     __table_args__ = (
         CheckConstraint(_en_lista("estado", ESTADOS_VENTA), name="ventas_estado"),
+        CheckConstraint(_en_lista("entrega", ESTADOS_ENTREGA), name="ventas_entrega"),
         Index("ix_ventas_campana_creada", "campana_id", "creada"),
         Index("ix_ventas_vendedor", "campana_id", "vendedor_id"),
     )
@@ -252,6 +272,7 @@ class Venta(Base):
     comprador_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("compradores.id"), nullable=False)
     importe: Mapped[int] = mapped_column(BigInteger, nullable=False)
     estado: Mapped[str] = mapped_column(String(20), nullable=False, default="confirmada")
+    entrega: Mapped[str] = mapped_column(String(20), nullable=False, default="pedido")
     codigo_corto: Mapped[str] = mapped_column(String(10), nullable=False)
     creada: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
@@ -262,16 +283,23 @@ class Venta(Base):
 
 class VentaItem(Base):
     __tablename__ = "venta_items"
-    __table_args__ = (UniqueConstraint("venta_id", "numero", name="venta_items_unica"),)
+    __table_args__ = (
+        Index("ix_venta_items_producto_id", "producto_id"),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=_uuid)
     venta_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("ventas.id", ondelete="CASCADE"), nullable=False
     )
-    numero: Mapped[int] = mapped_column(Integer, nullable=False)
+    numero: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    producto_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("productos.id", ondelete="SET NULL"), nullable=True
+    )
+    cantidad: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     precio_unitario: Mapped[int] = mapped_column(BigInteger, nullable=False)
 
     venta: Mapped[Venta] = relationship(back_populates="items")
+    producto: Mapped[Producto | None] = relationship(lazy="selectin")
 
 
 class Numero(Base):

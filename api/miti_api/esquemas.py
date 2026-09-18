@@ -167,15 +167,67 @@ class NuevaVenta(BaseModel):
     comprobante_id: uuid.UUID | None = None
 
 
+class ProductoCrear(BaseModel):
+    nombre: str = Field(min_length=1, max_length=100)
+    precio: int = Field(gt=0)
+    foto: str | None = None
+
+
+class ProductoModificar(BaseModel):
+    nombre: str | None = Field(default=None, min_length=1, max_length=100)
+    precio: int | None = Field(default=None, gt=0)
+    activo: bool | None = None
+    foto: str | None = None
+
+
+class ProductoSalida(BaseModel):
+    id: uuid.UUID
+    campana_id: uuid.UUID
+    nombre: str
+    precio: int
+    foto: str | None = None
+    activo: bool
+    creado: datetime
+
+
+class ItemVentaProductoEntrada(BaseModel):
+    producto_id: uuid.UUID
+    cantidad: int = Field(gt=0)
+
+
+class ItemVentaProductoSalida(BaseModel):
+    producto_id: uuid.UUID
+    nombre: str
+    cantidad: int
+    precio_unitario: int
+    subtotal: int
+
+
+class NuevaVentaProductos(BaseModel):
+    id: uuid.UUID | None = None
+    items: list[ItemVentaProductoEntrada] = Field(min_length=1)
+    comprador: CompradorEntrada
+    destino_cobro: Literal["billetera", "efectivo", "cuenta_principal", "adeudado"] = "efectivo"
+    importe_cobrado: int | None = Field(default=None, ge=0)
+    entrega: Literal["pedido", "entregado"] = "pedido"
+    comprobante_id: uuid.UUID | None = None
+
+
+class ActualizarEntrega(BaseModel):
+    entrega: Literal["pedido", "entregado"]
+
+
 class VentaSalida(BaseModel):
     id: uuid.UUID
     campana_id: uuid.UUID
     vendedor_id: uuid.UUID
     vendedor_nombre: str
     comprador: CompradorSalida
-    numeros: list[int]
+    numeros: list[int] = []
+    items_productos: list[ItemVentaProductoSalida] = []
     importe: int
     estado: str
+    entrega: str = "pedido"
     codigo_corto: str
     creada: datetime
     total_cobrado: int
@@ -242,6 +294,7 @@ class RecaudacionSalida(BaseModel):
     falta_cobrar: int
     numeros_totales: int
     numeros_libres: int
-    numeros_reservados: int
-    numeros_vendidos: int
+    numeros_reservados: int = 0
+    numeros_vendidos: int = 0
     cajas: list[RecaudacionCaja]
+    productos_desglose: list[dict] = []

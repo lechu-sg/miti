@@ -22,10 +22,22 @@ from ..esquemas import (
     RechazarMovimiento,
     RecaudacionCaja,
     RecaudacionSalida,
+    ItemVentaProductoSalida,
     ReservarNumero,
     VentaSalida,
 )
-from ..modelos import Caja, Campana, Comprador, Historial, Movimiento, Numero, Usuario, Venta, VentaItem
+from ..modelos import (
+    Caja,
+    Campana,
+    Comprador,
+    Historial,
+    Movimiento,
+    Numero,
+    Producto,
+    Usuario,
+    Venta,
+    VentaItem,
+)
 from ..seguridad import Contexto, contexto_activo
 
 ruteador = APIRouter(tags=["rifas y ventas"])
@@ -430,7 +442,11 @@ async def listar_ventas(
     ventas = (
         await s.execute(
             select(Venta)
-            .options(selectinload(Venta.items), selectinload(Venta.comprador), selectinload(Venta.vendedor))
+            .options(
+                selectinload(Venta.items).selectinload(VentaItem.producto),
+                selectinload(Venta.comprador),
+                selectinload(Venta.vendedor),
+            )
             .where(Venta.campana_id == ctx.campana.id)
             .order_by(Venta.creada.desc())
         )
@@ -462,6 +478,19 @@ async def listar_ventas(
         )
         nombre = cripto.descifrar(v.comprador.nombre_cifrado) or ""
 
+        numeros = [item.numero for item in v.items if item.numero is not None]
+        prod_items = [
+            ItemVentaProductoSalida(
+                producto_id=item.producto.id,
+                nombre=item.producto.nombre,
+                cantidad=item.cantidad,
+                precio_unitario=item.precio_unitario,
+                subtotal=item.precio_unitario * item.cantidad,
+            )
+            for item in v.items
+            if item.producto is not None
+        ]
+
         resultado.append(
             VentaSalida(
                 id=v.id,
@@ -473,9 +502,11 @@ async def listar_ventas(
                     nombre=nombre,
                     telefono=telefono,
                 ),
-                numeros=[item.numero for item in v.items],
+                numeros=numeros,
+                items_productos=prod_items,
                 importe=v.importe,
                 estado=v.estado,
+                entrega=v.entrega,
                 codigo_corto=v.codigo_corto,
                 creada=v.creada,
                 total_cobrado=confirmado,
@@ -495,7 +526,11 @@ async def detalle_venta(
     venta = (
         await s.execute(
             select(Venta)
-            .options(selectinload(Venta.items), selectinload(Venta.comprador), selectinload(Venta.vendedor))
+            .options(
+                selectinload(Venta.items).selectinload(VentaItem.producto),
+                selectinload(Venta.comprador),
+                selectinload(Venta.vendedor),
+            )
             .where(Venta.campana_id == ctx.campana.id, Venta.id == venta_id)
         )
     ).scalar_one_or_none()
@@ -517,6 +552,19 @@ async def detalle_venta(
     )
     nombre = cripto.descifrar(venta.comprador.nombre_cifrado) or ""
 
+    numeros = [item.numero for item in venta.items if item.numero is not None]
+    prod_items = [
+        ItemVentaProductoSalida(
+            producto_id=item.producto.id,
+            nombre=item.producto.nombre,
+            cantidad=item.cantidad,
+            precio_unitario=item.precio_unitario,
+            subtotal=item.precio_unitario * item.cantidad,
+        )
+        for item in venta.items
+        if item.producto is not None
+    ]
+
     return VentaSalida(
         id=venta.id,
         campana_id=venta.campana_id,
@@ -527,14 +575,13 @@ async def detalle_venta(
             nombre=nombre,
             telefono=telefono,
         ),
-        numeros=[item.numero for item in venta.items],
+        numeros=numeros,
+        items_productos=prod_items,
         importe=venta.importe,
         estado=venta.estado,
+        entrega=venta.entrega,
         codigo_corto=venta.codigo_corto,
         creada=venta.creada,
-        total_cobrado=confirmado,
-        cobro_pendiente=pendiente,
-        saldo_adeudado=saldo,
     )
 
 
@@ -836,7 +883,33 @@ async def ver_recaudacion(
                 confirmado=c_confirmado,
                 pendiente=c_pendiente,
             )
-        )
+    # 5. Desglose de productos si es campaña de productos
+    productos_desglose = []
+    if ctx.campana.tipo == "productos":
+        prods_vendidos = (
+            await s.execute(
+                select(
+                    Producto.id,
+                    Producto.nombre,
+                    func.sum(VentaItem.cantidad).label("cantidad_total"),
+                    func.sum(VentaItem.cantidad * VentaItem.precio_unitario).label("importe_total"),
+                )
+                .join(VentaItem, VentaItem.producto_id == Producto.id)
+                .join(Venta, Venta.id == VentaItem.venta_id)
+                .where(Producto.campana_id == ctx.campana.id, Venta.estado == "confirmada")
+                .group_by(Producto.id, Producto.nombre)
+            )
+        ).all()
+
+        for pid, pnom, cant, imp in prods_vendidos:
+            productos_desglose.append(
+                {
+                    "producto_id": str(pid),
+                    "nombre": pnom,
+                    "cantidad": int(cant or 0),
+                    "total": int(imp or 0),
+                }
+            )
 
     return RecaudacionSalida(
         cobrado=cobrado,
@@ -848,4 +921,5 @@ async def ver_recaudacion(
         numeros_reservados=reservados,
         numeros_vendidos=vendidos,
         cajas=cajas_salida,
+        productos_desglose=productos_desglose,
     )
