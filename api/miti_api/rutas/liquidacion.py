@@ -167,12 +167,16 @@ async def _obtener_datos_liquidacion(
     total_gastos_bolsillo = sum(gastos_bolsillo_por_usuario.values())
     total_gastos = gastos_caja_total + total_gastos_bolsillo
 
+    # Mapear cobros confirmados por venta
+    cobrado_por_venta: dict[uuid.UUID, int] = {}
+    for m in movs_confirmados:
+        if m.venta_id:
+            cobrado_por_venta[m.venta_id] = cobrado_por_venta.get(m.venta_id, 0) + m.importe
+
     # Cargar ventas para calcular deuda por vendedor (base vendida)
     ventas_db = (
         await s.execute(
-            select(Venta)
-            .options(selectinload(Venta.movimientos))
-            .where(
+            select(Venta).where(
                 Venta.campana_id == campana.id,
                 Venta.estado == "confirmada",
             )
@@ -181,7 +185,7 @@ async def _obtener_datos_liquidacion(
 
     deuda_por_vendedor: dict[uuid.UUID, int] = {i.usuario_id: 0 for i in integrantes_db}
     for v in ventas_db:
-        cobrado_v = sum(m.importe for m in v.movimientos if m.estado == "confirmado")
+        cobrado_v = cobrado_por_venta.get(v.id, 0)
         saldo_v = v.importe - cobrado_v
         if saldo_v > 0 and v.vendedor_id in deuda_por_vendedor:
             deuda_por_vendedor[v.vendedor_id] += saldo_v
