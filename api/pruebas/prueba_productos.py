@@ -157,6 +157,7 @@ probar("estado entrega inicial 'pedido'", "pedido", v1["entrega"])
 probar("hay 2 items en la venta", 2, len(v1["items_productos"]))
 
 # Ana vende 1 pizza muzza a cuenta principal, entrega 'entregado'
+# Ana (dueña de la cuenta principal) vende 1 pizza muzza a cuenta principal
 est, v2 = llamar("POST", f"/campanas/{cid}/ventas/productos", t1, {
     "items": [
         {"producto_id": p2_id, "cantidad": 1},
@@ -168,11 +169,27 @@ est, v2 = llamar("POST", f"/campanas/{cid}/ventas/productos", t1, {
     "destino_cobro": "cuenta_principal",
     "entrega": "entregado",
 })
-probar("registrar venta a cuenta principal", 201, est)
+probar("dueña de cuenta vende a cuenta principal", 201, est)
 probar("importe $8.000", 800_000, v2["importe"])
-probar("cobro pendiente $8.000", 800_000, v2["cobro_pendiente"])
-probar("total cobrado confirmado es 0", 0, v2["total_cobrado"])
+probar("queda confirmado al instante (0 pendiente)", 0, v2["cobro_pendiente"])
+probar("total cobrado confirmado es $8.000", 800_000, v2["total_cobrado"])
 probar("estado entrega 'entregado'", "entregado", v2["entrega"])
+
+# Beto (no dueño de cuenta principal) vende 1 pizza a cuenta principal
+est, v3 = llamar("POST", f"/campanas/{cid}/ventas/productos", t2, {
+    "items": [
+        {"producto_id": p2_id, "cantidad": 1},
+    ],
+    "comprador": {
+        "nombre": "Esteban Quito",
+        "telefono": "1122339988",
+    },
+    "destino_cobro": "cuenta_principal",
+    "entrega": "pedido",
+})
+probar("participante que no es dueño vende a cuenta principal", 201, est)
+probar("venta de participante queda pendiente de confirmación", 800_000, v3["cobro_pendiente"])
+probar("venta de participante tiene cobrado confirmado 0", 0, v3["total_cobrado"])
 
 # Intentar vender producto inactivo da 409
 est, _ = llamar("POST", f"/campanas/{cid}/ventas/productos", t2, {
@@ -190,7 +207,7 @@ probar("entrega ahora es 'entregado'", "entregado", v1_mod["entrega"])
 
 print("\n== 5. Regla de privacidad (§3.2) ==")
 est, ventas_beto = llamar("GET", f"/campanas/{cid}/ventas", t2)
-probar("listar ventas devuelve 2 ventas", 2, len(ventas_beto))
+probar("listar ventas devuelve 3 ventas", 3, len(ventas_beto))
 v1_b = next(v for v in ventas_beto if v["id"] == v1_id)
 v2_b = next(v for v in ventas_beto if v["id"] == v2["id"])
 
@@ -200,8 +217,8 @@ probar("Beto NO ve teléfono de compradora de Ana", None, v2_b["comprador"]["tel
 print("\n== 6. Recaudación y desglose de productos ==")
 est, rec = llamar("GET", f"/campanas/{cid}/recaudacion", t1)
 probar("recaudacion status 200", 200, est)
-probar("total vendido es $40.000", 4_000_000, rec["vendido"])
-probar("cobrado confirmado $32.000", 3_200_000, rec["cobrado"])
+probar("total vendido es $48.000", 4_800_000, rec["vendido"])
+probar("cobrado confirmado $40.000", 4_000_000, rec["cobrado"])
 probar("falta cobrar $8.000", 800_000, rec["falta_cobrar"])
 
 desglose = {item["nombre"]: item for item in rec.get("productos_desglose", [])}
@@ -209,8 +226,8 @@ probar("hay desglose de empanadas", True, "Docena de Empanadas" in desglose)
 probar("2 docenas vendidas", 2, desglose["Docena de Empanadas"]["cantidad"])
 probar("total empanadas $24.000", 2_400_000, desglose["Docena de Empanadas"]["total"])
 probar("hay desglose de pizza", True, "Pizza Muzza" in desglose)
-probar("2 pizzas vendidas", 2, desglose["Pizza Muzza"]["cantidad"])
-probar("total pizzas $16.000", 1_600_000, desglose["Pizza Muzza"]["total"])
+probar("3 pizzas vendidas", 3, desglose["Pizza Muzza"]["cantidad"])
+probar("total pizzas $24.000", 2_400_000, desglose["Pizza Muzza"]["total"])
 
 print("\n==========================================")
 print(f"Total: {bien} en verde, {fallas} fallas")

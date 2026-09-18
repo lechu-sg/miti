@@ -296,12 +296,12 @@ async def registrar_venta_productos(
             )
             s.add(mov)
             cobrado_confirmado = cobro_parcial
-    elif datos.destino_cobro in ("efectivo", "billetera"):
+    elif datos.destino_cobro == "efectivo":
         caja = (
             await s.execute(
                 select(Caja).where(
                     Caja.campana_id == ctx.campana.id,
-                    Caja.tipo == datos.destino_cobro,
+                    Caja.tipo == "efectivo",
                     Caja.titular_id == ctx.usuario.id,
                 )
             )
@@ -312,33 +312,64 @@ async def registrar_venta_productos(
             caja_destino=caja.id,
             importe=importe_total,
             estado="confirmado",
+            requiere_aprobacion_de=None,
+            aprobado_por=ctx.usuario.id,
             venta_id=venta.id,
             comprobante_id=datos.comprobante_id,
             creado_por=ctx.usuario.id,
-            motivo=f"Cobro en {datos.destino_cobro} de productos",
+            motivo="Cobro en efectivo de productos",
         )
         s.add(mov)
         cobrado_confirmado = importe_total
-    elif datos.destino_cobro == "cuenta_principal":
+    elif datos.destino_cobro in ("billetera", "cuenta_principal"):
         caja_ppal = (
             await s.execute(
                 select(Caja).where(Caja.campana_id == ctx.campana.id, Caja.tipo == "principal")
             )
         ).scalar_one()
+        es_dueno_cuenta = caja_ppal.titular_id == ctx.usuario.id
+
+        if es_dueno_cuenta or datos.destino_cobro == "cuenta_principal":
+            caja = caja_ppal
+            if es_dueno_cuenta:
+                estado_mov = "confirmado"
+                requiere = None
+                aprobado = ctx.usuario.id
+                cobrado_confirmado = importe_total
+            else:
+                estado_mov = "pendiente"
+                requiere = caja_ppal.titular_id
+                aprobado = None
+                cobro_pendiente = importe_total
+        else:
+            caja = (
+                await s.execute(
+                    select(Caja).where(
+                        Caja.campana_id == ctx.campana.id,
+                        Caja.tipo == "billetera",
+                        Caja.titular_id == ctx.usuario.id,
+                    )
+                )
+            ).scalar_one()
+            estado_mov = "confirmado"
+            requiere = None
+            aprobado = ctx.usuario.id
+            cobrado_confirmado = importe_total
+
         mov = Movimiento(
             campana_id=ctx.campana.id,
             tipo="cobro",
-            caja_destino=caja_ppal.id,
+            caja_destino=caja.id,
             importe=importe_total,
-            estado="pendiente",
-            requiere_aprobacion_de=caja_ppal.titular_id,
+            estado=estado_mov,
+            requiere_aprobacion_de=requiere,
+            aprobado_por=aprobado,
             venta_id=venta.id,
             comprobante_id=datos.comprobante_id,
             creado_por=ctx.usuario.id,
-            motivo="Cobro de productos en cuenta principal de la campaña",
+            motivo=f"Cobro en {caja.tipo} de productos",
         )
         s.add(mov)
-        cobro_pendiente = importe_total
 
     s.add(
         Historial(

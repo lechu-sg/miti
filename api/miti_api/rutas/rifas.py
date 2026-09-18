@@ -342,12 +342,22 @@ async def registrar_venta(
             datos.importe_cobrado if datos.importe_cobrado is not None else importe_total
         )
         if importe_a_cobrar > 0:
-            if datos.destino_cobro in ("billetera", "efectivo"):
+            caja_ppal = (
+                await s.execute(
+                    select(Caja).where(
+                        Caja.campana_id == ctx.campana.id,
+                        Caja.tipo == "principal",
+                    )
+                )
+            ).scalar_one()
+            es_dueno_cuenta = caja_ppal.titular_id == ctx.usuario.id
+
+            if datos.destino_cobro == "efectivo":
                 caja = (
                     await s.execute(
                         select(Caja).where(
                             Caja.campana_id == ctx.campana.id,
-                            Caja.tipo == datos.destino_cobro,
+                            Caja.tipo == "efectivo",
                             Caja.titular_id == ctx.usuario.id,
                         )
                     )
@@ -356,25 +366,33 @@ async def registrar_venta(
                 requiere = None
                 aprobado = ctx.usuario.id
                 cobrado_confirmado = importe_a_cobrar
-            elif datos.destino_cobro == "cuenta_principal":
-                caja = (
-                    await s.execute(
-                        select(Caja).where(
-                            Caja.campana_id == ctx.campana.id,
-                            Caja.tipo == "principal",
+            elif datos.destino_cobro in ("billetera", "cuenta_principal"):
+                if es_dueno_cuenta or datos.destino_cobro == "cuenta_principal":
+                    caja = caja_ppal
+                    if es_dueno_cuenta:
+                        estado_mov = "confirmado"
+                        requiere = None
+                        aprobado = ctx.usuario.id
+                        cobrado_confirmado = importe_a_cobrar
+                    else:
+                        estado_mov = "pendiente"
+                        requiere = caja_ppal.titular_id
+                        aprobado = None
+                        cobrado_pendiente = importe_a_cobrar
+                else:
+                    caja = (
+                        await s.execute(
+                            select(Caja).where(
+                                Caja.campana_id == ctx.campana.id,
+                                Caja.tipo == "billetera",
+                                Caja.titular_id == ctx.usuario.id,
+                            )
                         )
-                    )
-                ).scalar_one()
-                if caja.titular_id == ctx.usuario.id:
+                    ).scalar_one()
                     estado_mov = "confirmado"
                     requiere = None
                     aprobado = ctx.usuario.id
                     cobrado_confirmado = importe_a_cobrar
-                else:
-                    estado_mov = "pendiente"
-                    requiere = caja.titular_id
-                    aprobado = None
-                    cobrado_pendiente = importe_a_cobrar
             else:
                 raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "destino no válido")
 
@@ -612,12 +630,19 @@ async def registrar_cobro_venta(
             f"el importe supera el saldo adeudado de la venta (${saldo / 100:.2f})",
         )
 
-    if datos.caja_tipo in ("billetera", "efectivo"):
+    caja_ppal = (
+        await s.execute(
+            select(Caja).where(Caja.campana_id == ctx.campana.id, Caja.tipo == "principal")
+        )
+    ).scalar_one()
+    es_dueno_cuenta = caja_ppal.titular_id == ctx.usuario.id
+
+    if datos.caja_tipo == "efectivo":
         caja = (
             await s.execute(
                 select(Caja).where(
                     Caja.campana_id == ctx.campana.id,
-                    Caja.tipo == datos.caja_tipo,
+                    Caja.tipo == "efectivo",
                     Caja.titular_id == ctx.usuario.id,
                 )
             )
@@ -625,20 +650,30 @@ async def registrar_cobro_venta(
         estado_mov = "confirmado"
         requiere = None
         aprobado = ctx.usuario.id
-    elif datos.caja_tipo == "cuenta_principal":
-        caja = (
-            await s.execute(
-                select(Caja).where(Caja.campana_id == ctx.campana.id, Caja.tipo == "principal")
-            )
-        ).scalar_one()
-        if caja.titular_id == ctx.usuario.id:
+    elif datos.caja_tipo in ("billetera", "cuenta_principal"):
+        if es_dueno_cuenta or datos.caja_tipo == "cuenta_principal":
+            caja = caja_ppal
+            if es_dueno_cuenta:
+                estado_mov = "confirmado"
+                requiere = None
+                aprobado = ctx.usuario.id
+            else:
+                estado_mov = "pendiente"
+                requiere = caja_ppal.titular_id
+                aprobado = None
+        else:
+            caja = (
+                await s.execute(
+                    select(Caja).where(
+                        Caja.campana_id == ctx.campana.id,
+                        Caja.tipo == "billetera",
+                        Caja.titular_id == ctx.usuario.id,
+                    )
+                )
+            ).scalar_one()
             estado_mov = "confirmado"
             requiere = None
             aprobado = ctx.usuario.id
-        else:
-            estado_mov = "pendiente"
-            requiere = caja.titular_id
-            aprobado = None
     else:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "tipo de caja inválido")
 
