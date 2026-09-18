@@ -273,7 +273,7 @@ async def registrar_venta(
             if n.reserva_vence and n.reserva_vence < ahora:
                 # Venció: se puede vender
                 pass
-            elif n.reservado_por != ctx.usuario.id and not ctx.es_admin:
+            elif n.reservado_por != ctx.usuario.id:
                 raise HTTPException(
                     status.HTTP_409_CONFLICT,
                     f"el número {n.numero} está reservado por otro integrante",
@@ -634,6 +634,38 @@ async def registrar_cobro_venta(
         creado_por=mov.creado_por,
         creado=mov.creado,
     )
+
+
+@ruteador.get("/campanas/{campana_id}/movimientos", response_model=list[MovimientoSalida])
+async def listar_movimientos(
+    estado: str | None = None,
+    ctx: Contexto = Depends(contexto_activo),
+    s: AsyncSession = Depends(sesion),
+) -> list[MovimientoSalida]:
+    q = select(Movimiento).where(Movimiento.campana_id == ctx.campana.id)
+    if estado:
+        q = q.where(Movimiento.estado == estado)
+    q = q.order_by(Movimiento.creado.desc())
+    movs = (await s.execute(q)).scalars().all()
+    return [
+        MovimientoSalida(
+            id=m.id,
+            campana_id=m.campana_id,
+            tipo=m.tipo,
+            caja_origen=m.caja_origen,
+            caja_destino=m.caja_destino,
+            importe=m.importe,
+            estado=m.estado,
+            requiere_aprobacion_de=m.requiere_aprobacion_de,
+            aprobado_por=m.aprobado_por,
+            motivo=m.motivo,
+            venta_id=m.venta_id,
+            comprobante_id=m.comprobante_id,
+            creado_por=m.creado_por,
+            creado=m.creado,
+        )
+        for m in movs
+    ]
 
 
 @ruteador.post("/campanas/{campana_id}/movimientos/{movimiento_id}/confirmar", response_model=MovimientoSalida)

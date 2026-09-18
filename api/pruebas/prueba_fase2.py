@@ -90,7 +90,7 @@ cid = camp["id"]
 est, _ = llamar("POST", f"/campanas/{cid}/invitaciones", t1, {"email": U2})
 probar("Ana invita a Beto", 201, est)
 
-est, _ = llamar("POST", f"/campanas/{cid}/respuesta", t2, {"respuesta": "acepto"})
+est, _ = llamar("POST", f"/campanas/{cid}/invitacion", t2, {"respuesta": "acepto"})
 probar("Beto acepta invitación", 200, est)
 
 # Ana activa la campaña
@@ -208,17 +208,23 @@ probar("falta cobrar $4.000 (adeudado + pendiente)", 400_000, rec["falta_cobrar"
 probar("números vendidos: 4", 4, rec["numeros_vendidos"])
 probar("números libres: 96", 96, rec["numeros_libres"])
 
-# Ana busca el movimiento pendiente de la venta 2 y lo confirma
-# Obtenemos el detalle de la venta 2
-est, det_v2 = llamar("GET", f"/campanas/{cid}/ventas/{v2['id']}", t1)
-# Consultamos recaudación / cajas para ver los movimientos
-# Ana confirma el cobro que le entró en la cuenta principal
-# Buscamos el movimiento con estado pendiente en la cuenta principal
+# Ana busca el movimiento pendiente de la cuenta principal y lo confirma
 caja_principal = next(c for c in rec["cajas"] if c["tipo"] == "principal")
 probar("la caja principal tiene $2.000 pendientes", 200_000, caja_principal["pendiente"])
 
-# Realizamos la confirmación del movimiento pendiente:
-# Para encontrar el ID del movimiento, registramos un cobro y obtenemos ID, o llamamos a confirmar
+est, movs_pend = llamar("GET", f"/campanas/{cid}/movimientos?estado=pendiente", t1)
+probar("hay 1 movimiento pendiente de aprobación", 1, len(movs_pend))
+mov_pend = movs_pend[0]
+
+# Ana lo confirma
+est, mov_conf = llamar("POST", f"/campanas/{cid}/movimientos/{mov_pend['id']}/confirmar", t1)
+probar("Ana confirma el ingreso en cuenta principal", 200, est)
+probar("el movimiento pasa a confirmado", "confirmado", mov_conf["estado"])
+
+# Ahora recaudación tiene los $2.000 como cobrados
+est, rec_post = llamar("GET", f"/campanas/{cid}/recaudacion", t1)
+probar("cobrado total asciende a $6.000", 600_000, rec_post["cobrado"])
+probar("ya no queda nada pendiente de cobro en cajas", 0, rec_post["pendiente"])
 # Verificamos que cobro de venta adeudada funciona:
 est, cobro_parcial = llamar("POST", f"/campanas/{cid}/ventas/{v3['id']}/cobros", t1, {
     "caja_tipo": "billetera",
