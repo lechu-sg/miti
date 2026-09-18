@@ -53,7 +53,7 @@ def codigo_de(email):
         SSH + ["cd /srv/miti/app/infra && sudo docker compose logs --since 5m api"],
         capture_output=True, text=True, encoding="utf-8", errors="replace",
     ).stdout
-    hallazgos = re.findall(rf"CÓDIGO DE ACCESO para {re.escape(email)}: (\\d{{6}})", salida)
+    hallazgos = re.findall(rf"CÓDIGO DE ACCESO para {re.escape(email)}: (\d{{6}})", salida)
     return hallazgos[-1] if hallazgos else None
 
 

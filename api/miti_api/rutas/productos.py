@@ -436,10 +436,10 @@ async def actualizar_entrega(
     pendiente = sum(m.importe for m in movs if m.estado == "pendiente")
     saldo_adeudado = max(0, venta.importe - cobrado - pendiente)
 
-    nombre_comprador = cripto.descifrar_texto(venta.comprador.nombre_cifrado)
+    nombre_comprador = cripto.descifrar(venta.comprador.nombre_cifrado) or ""
     tel_comprador = None
     if venta.vendedor_id == ctx.usuario.id:
-        tel_comprador = cripto.descifrar_texto(venta.comprador.telefono_cifrado)
+        tel_comprador = cripto.descifrar(venta.comprador.telefono_cifrado)
 
     items_salida = []
     numeros = []
