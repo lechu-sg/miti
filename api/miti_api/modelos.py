@@ -169,6 +169,7 @@ class Caja(Base):
     cerrada: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     campana: Mapped[Campana] = relationship(back_populates="cajas")
+    titular: Mapped["Usuario"] = relationship(foreign_keys=[titular_id], lazy="selectin")
 
 
 class Historial(Base):
@@ -350,3 +351,21 @@ class Movimiento(Base):
     comprobante_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("comprobantes.id"))
     creado_por: Mapped[uuid.UUID] = mapped_column(ForeignKey("usuarios.id"), nullable=False)
     creado: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class SyncLog(Base):
+    __tablename__ = "sync_log"
+    __table_args__ = (
+        Index("ix_sync_log_campana_secuencia", "campana_id", "secuencia"),
+    )
+
+    secuencia: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    campana_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("campanas.id", ondelete="CASCADE"), nullable=False
+    )
+    tabla: Mapped[str] = mapped_column(String(50), nullable=False)
+    fila_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    op: Mapped[str] = mapped_column(String(10), nullable=False)
+    datos: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    creado: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+

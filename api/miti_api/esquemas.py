@@ -298,3 +298,37 @@ class RecaudacionSalida(BaseModel):
     numeros_vendidos: int = 0
     cajas: list[RecaudacionCaja]
     productos_desglose: list[dict] = []
+
+
+# Sincronización offline (§5)
+class SyncOperacionEntrada(BaseModel):
+    id: uuid.UUID
+    op: str = Field(pattern="^(vender_rifa|vender_productos|actualizar_entrega)$")
+    payload: dict
+    creado: datetime | None = None
+    creado_cliente: datetime | None = None
+
+
+class SyncPushEntrada(BaseModel):
+    operaciones: list[SyncOperacionEntrada]
+
+
+class SyncOperacionResultado(BaseModel):
+    id: uuid.UUID
+    estado: str  # 'ok', 'conflicto', 'rechazado'
+    motivo: str | None = None
+    detalle: dict | None = None
+    secuencia: int | None = None
+    resultado: dict | None = None
+
+
+class SyncPushSalida(BaseModel):
+    resultados: list[SyncOperacionResultado]
+
+
+class SyncPullSalida(BaseModel):
+    cursor: int
+    hay_mas: bool = False
+    cambios: list[dict] = []
+    snapshot: dict | None = None
+
