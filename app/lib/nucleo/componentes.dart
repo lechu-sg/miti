@@ -602,19 +602,21 @@ class MitiHoja extends StatelessWidget {
     final c = context.color;
     final t = context.texto;
 
-    return Container(
-      decoration: BoxDecoration(
-        color: c.hoja,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-        boxShadow: [
-          BoxShadow(
-            color: c.tinta.withValues(alpha: 0.12),
-            blurRadius: 30,
-            offset: const Offset(0, -12),
-          ),
-        ],
-      ),
-      child: SafeArea(
+    return Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      child: Container(
+        decoration: BoxDecoration(
+          color: c.hoja,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+          boxShadow: [
+            BoxShadow(
+              color: c.tinta.withValues(alpha: 0.12),
+              blurRadius: 30,
+              offset: const Offset(0, -12),
+            ),
+          ],
+        ),
+        child: SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -652,6 +654,7 @@ class MitiHoja extends StatelessWidget {
           ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 }

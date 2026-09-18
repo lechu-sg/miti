@@ -240,6 +240,7 @@ class _HojaEditorProductoState extends ConsumerState<_HojaEditorProducto> {
   late final TextEditingController _nombreCtrl;
   late final TextEditingController _precioCtrl;
   bool _cargando = false;
+  String? _error;
 
   @override
   void initState() {
@@ -261,7 +262,10 @@ class _HojaEditorProductoState extends ConsumerState<_HojaEditorProducto> {
 
   Future<void> _guardar() async {
     if (!_formKey.currentState!.validate()) return;
-    setState(() => _cargando = true);
+    setState(() {
+      _cargando = true;
+      _error = null;
+    });
 
     final nombre = _nombreCtrl.text.trim();
     final pesos = int.tryParse(_precioCtrl.text.trim()) ?? 0;
@@ -286,13 +290,17 @@ class _HojaEditorProductoState extends ConsumerState<_HojaEditorProducto> {
       if (mounted) Navigator.of(context).pop(true);
     } on ErrorApi catch (e) {
       if (mounted) {
-        setState(() => _cargando = false);
-        mostrarAviso(context, e.mensaje, error: true);
+        setState(() {
+          _cargando = false;
+          _error = e.mensaje;
+        });
       }
     } catch (_) {
       if (mounted) {
-        setState(() => _cargando = false);
-        mostrarAviso(context, 'No se pudo guardar el producto', error: true);
+        setState(() {
+          _cargando = false;
+          _error = 'No se pudo guardar el producto. Fijate si tenés señal.';
+        });
       }
     }
   }
@@ -344,6 +352,21 @@ class _HojaEditorProductoState extends ConsumerState<_HojaEditorProducto> {
                 return null;
               },
             ),
+            if (_error != null) ...[
+              const SizedBox(height: 14),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: c.sello.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: c.sello, width: 1.2),
+                ),
+                child: Text(
+                  _error!,
+                  style: t.pie.copyWith(color: c.selloTexto, fontWeight: FontWeight.w600),
+                ),
+              ),
+            ],
             const SizedBox(height: 24),
             MitiBoton(
               texto: esEdicion ? 'Guardar cambios' : 'Crear producto',
