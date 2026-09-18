@@ -118,25 +118,30 @@ Antes de publicar una versión nueva, subí `version:` en `app/pubspec.yaml`. La
 - **Fase 1 (cuentas, campañas, invitaciones, cajas): HECHA y probada en el celular.**
 - **Fase 2 (rifa, números, ventas, cobros, billete y comprobantes): HECHA.**
   - Migración 0003 aplicada en la base del VPS.
-  - API ampliada con rutas para números (libres, reservados por 48h, vendidos), ventas con compradores cifrados, destinos de fondos (billetera, efectivo, cuenta principal), subida de comprobantes con hash y detección de duplicados, y métricas de recaudación.
   - Pruebas de API: `prueba_fase1.py` (39/39 en verde) y `prueba_fase2.py` (55/55 en verde).
-  - App móvil actualizada con componentes Talonario: grilla interactiva de 10 columnas, selector de destino del dinero, registro de ventas, talón/billete para WhatsApp y pantalla para compartir disponibles en historias/post.
-  - **Última APK publicada:** `https://miti.sole.ar/descargas/miti-0.2.3.apk` (hash SHA256 `3f074a58...`).
-    - Generador de disponibles con grilla fija de 10 columnas por fila.
-    - Los números no disponibles (vendidos o reservados) dejan el casillero en blanco (espacio libre).
-    - Tipografía Big Shoulders con grosor refinado (w600) y márgenes reducidos para máximo aprovechamiento del espacio.
-    - Selector de rango Desde - Hasta para rifas grandes (hasta 200 números por imagen o tandas de a 100).
-    - Ajuste automático de escala para números de 3 dígitos (ej: 200) sin cortes ni desbordes.
+
+- **Campañas de Venta de Productos (Opción 1): HECHA.**
+  - Migración 0004 aplicada en el VPS (`productos`, items con producto/cantidad, columna `entrega` en `ventas`).
+  - Endpoints implementados y probados: catálogo (`GET/POST/PATCH /campanas/{id}/productos`), venta de productos (`POST /campanas/{id}/ventas/productos`), actualización de entrega (`PATCH /campanas/{id}/ventas/{id}/entrega`), recaudación con desglose de productos.
+  - Prueba de API: `prueba_productos.py` (40/40 en verde).
+  - App móvil Flutter (v0.3.0+6):
+    - `PantallaCatalogoProductos`: alta, edición y toggle activo/pausado de productos con precios en formato Talonario.
+    - `PantallaVentaProductos`: selector de cantidades `[-] cant [+]`, subtotal en vivo, datos del comprador, destino de cobro, estado de entrega inicial y botón sello.
+    - `PantallaCampana`: soporte completo de tipo `productos`, desglose de productos vendidos, lista de pedidos con chip interactivo de entrega (`📦 PEDIDO` / `✓ ENTREGADO`).
+    - `PantallaBillete`: comprobante adaptado para productos (cantidades, nombres, subtotales, entrega) con auto-compartir en WhatsApp (imagen PNG + mensaje formateado).
+    - `flutter analyze`: limpio (0 issues), `flutter test`: 3/3 en verde.
+  - **Última APK publicada:** `https://miti.sole.ar/descargas/miti-0.3.0.apk` (hash SHA256 `98D773746D4DDC9D830AD7CAE3C7B2BC577A9EC5CFFF4BDC8EEA6BB2E5BE9EEF`).
 
 ## 7. Pasos a seguir, en orden
 
-1. **El usuario prueba la APK 0.2.3 en el celular**:
-   - Probar el generador de números con 10 columnas por fila y espacios vacíos para vendidos.
-   - Probar el selector de rango Desde - Hasta (0 a 99, 100 a 199, o personalizado).
-   - Verificar la legibilidad y que el número 200 entre de forma proporcionada.
-   - Atender cualquier detalle de uso o diseño que reporte.
-2. **Fase 3**, cuando el usuario dé el visto bueno a la APK 0.2.0:
+1. **El usuario prueba la APK 0.3.0 en el celular**:
+   - Crear o ingresar a una campaña de productos.
+   - Administrar el catálogo de productos (crear, editar precios, pausar/activar).
+   - Registrar una venta/pedido de productos con cantidades múltiples y ver cómo se abre WhatsApp con el comprobante.
+   - Marcar pedidos como entregados desde la pantalla de la campaña.
+   - Comprobar los números de recaudación y desglose de productos vendidos.
+2. **Siguiente fase (Fase 3)**:
    - Modo sin señal / offline: drift (SQLite) en el celular.
    - Cola de operaciones (outbox) con UUIDs de idempotencia.
    - Sincronización `POST /sync/push` y `GET /sync/pull?desde=<secuencia>`.
-   - Resolución de conflictos en ventas de números simultáneas sin conexión.
+   - Resolución de conflictos en ventas simultáneas sin conexión.
