@@ -245,6 +245,28 @@ class ApiMiti {
       (await pedir('PATCH', '/campanas/$campanaId/ventas/$ventaId/entrega', cuerpo: {
         'entrega': entrega,
       })) as Map<String, dynamic>;
+
+  // Sincronización offline (§5)
+  Future<Map<String, dynamic>> syncPush(
+    String campanaId,
+    List<Map<String, dynamic>> operaciones,
+  ) async =>
+      (await pedir('POST', '/campanas/$campanaId/sync/push', cuerpo: {
+        'operaciones': operaciones,
+      })) as Map<String, dynamic>;
+
+  Future<Map<String, dynamic>> syncPull(
+    String campanaId, {
+    int desde = 0,
+    bool snapshot = false,
+  }) async {
+    final params = [
+      'desde=$desde',
+      if (snapshot) 'snapshot=true',
+    ].join('&');
+    return (await pedir('GET', '/campanas/$campanaId/sync/pull?$params'))
+        as Map<String, dynamic>;
+  }
 }
 
 /// Un error que vino de la API, ya traducido a algo que se le puede mostrar a la gente.

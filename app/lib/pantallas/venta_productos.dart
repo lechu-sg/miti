@@ -3,8 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../estado/sesion.dart';
 import '../nucleo/api.dart';
+import '../nucleo/base_local.dart';
 import '../nucleo/componentes.dart';
 import '../nucleo/formato.dart';
+import '../nucleo/sincronizador.dart';
 import '../nucleo/tema.dart';
 import 'billete.dart';
 
@@ -62,42 +64,42 @@ class _PantallaVentaProductosState extends ConsumerState<PantallaVentaProductos>
     }
     if (!_formKey.currentState!.validate()) return;
 
+    final itemsParaEnviar = <Map<String, dynamic>>[];
+    final itemsParaBillete = <Map<String, dynamic>>[];
+
+    for (final prod in productos) {
+      final id = prod['id'] as String;
+      final cant = _cantidades[id] ?? 0;
+      if (cant > 0) {
+        final precio = prod['precio'] as int;
+        itemsParaEnviar.add({
+          'producto_id': id,
+          'cantidad': cant,
+        });
+        itemsParaBillete.add({
+          'producto_id': id,
+          'nombre': prod['nombre'] as String,
+          'cantidad': cant,
+          'precio_unitario': precio,
+          'subtotal': cant * precio,
+        });
+      }
+    }
+
+    final tel = _telefonoCtrl.text.trim();
+    final cuerpo = {
+      'comprador': {
+        'nombre': _nombreCtrl.text.trim(),
+        if (tel.isNotEmpty) 'telefono': tel,
+      },
+      'items': itemsParaEnviar,
+      'destino_cobro': _destinoCobro,
+      'entrega': _entrega,
+    };
+
     setState(() => _enviando = true);
 
     try {
-      final itemsParaEnviar = <Map<String, dynamic>>[];
-      final itemsParaBillete = <Map<String, dynamic>>[];
-
-      for (final prod in productos) {
-        final id = prod['id'] as String;
-        final cant = _cantidades[id] ?? 0;
-        if (cant > 0) {
-          final precio = prod['precio'] as int;
-          itemsParaEnviar.add({
-            'producto_id': id,
-            'cantidad': cant,
-          });
-          itemsParaBillete.add({
-            'producto_id': id,
-            'nombre': prod['nombre'] as String,
-            'cantidad': cant,
-            'precio_unitario': precio,
-            'subtotal': cant * precio,
-          });
-        }
-      }
-
-      final tel = _telefonoCtrl.text.trim();
-      final cuerpo = {
-        'comprador': {
-          'nombre': _nombreCtrl.text.trim(),
-          if (tel.isNotEmpty) 'telefono': tel,
-        },
-        'items': itemsParaEnviar,
-        'destino_cobro': _destinoCobro,
-        'entrega': _entrega,
-      };
-
       final api = ref.read(apiProvider);
       final venta = await api.venderProductos(widget.campanaId, cuerpo);
 
@@ -142,10 +144,41 @@ class _PantallaVentaProductosState extends ConsumerState<PantallaVentaProductos>
         mostrarAviso(context, e.mensaje, error: true);
       }
     } catch (_) {
-      if (mounted) {
-        setState(() => _enviando = false);
-        mostrarAviso(context, 'No se pudo registrar la venta', error: true);
-      }
+      // Sin señal / error de red: guardar en outbox (§5 de DEFINICION.md)
+      final opId = generarUuid();
+      await BaseLocal.instancia.encolarOperacion(
+        widget.campanaId,
+        opId,
+        'vender_productos',
+        cuerpo,
+      );
+
+      ref.read(sincroProvider(widget.campanaId).notifier).actualizarContadores();
+
+      if (!mounted) return;
+      mostrarAviso(
+        context,
+        'Venta guardada sin señal. Se confirmará al recuperar internet.',
+      );
+
+      final importe = _calcularTotal(productos);
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (_) => PantallaBillete(
+            campanaNombre: widget.campanaNombre,
+            numeros: const [],
+            itemsProductos: itemsParaBillete,
+            importe: importe,
+            compradorNombre: _nombreCtrl.text.trim(),
+            compradorTelefono: _telefonoCtrl.text.trim().isNotEmpty ? _telefonoCtrl.text.trim() : null,
+            vendedorNombre: 'Venta sin señal',
+            codigoCorto: 'PENDIENTE',
+            estaPagado: _destinoCobro != 'adeudado',
+            entrega: _entrega,
+            autoCompartir: true,
+          ),
+        ),
+      );
     }
   }
 

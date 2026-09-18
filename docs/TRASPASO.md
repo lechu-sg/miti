@@ -129,14 +129,31 @@ Antes de publicar una versión nueva, subí `version:` en `app/pubspec.yaml`. La
   - App móvil Flutter (v0.3.1+7): `flutter analyze` 0 issues, `flutter test` 3/3 en verde.
   - **Última APK publicada:** `https://miti.sole.ar/descargas/miti-0.3.1.apk` (hash SHA256 `D758EFC134864C17F761DEF27C2E34255593A18EAAA2023F1BFE45E07A9CF52F`).
 
+- **Fase 3 (Modo sin señal, persistencia SQLite, Outbox y Sync bidireccional): HECHA (v0.4.0).**
+  - Migración 0005 aplicada en el VPS (`sync_log` con secuencia, `campana_id`, `tabla`, `fila_id`, `op`, `datos` JSONB, índice en `campana_id, secuencia`).
+  - Endpoints implementados y probados:
+    - `POST /campanas/{id}/sync/push`: lote de operaciones con control de idempotencia por UUID, transaccionalidad, bloqueo de concurrencia y detección de conflictos (`numeros_ocupados`, `producto_inactivo`).
+    - `GET /campanas/{id}/sync/pull`: descarga de snapshot completo (`snapshot=true`) para hidratación de base local y bajada incremental (`desde=cursor`) de cambios.
+  - Persistencia local en SQLite (`app/lib/nucleo/base_local.dart`): réplicas de campañas, números, productos, ventas, estado de cursor y cola de operaciones pendientes (`outbox`).
+  - Servicio de sincronización (`app/lib/nucleo/sincronizador.dart`): orquestador push/pull, expone `sincroProvider` con contadores de pendientes y conflictos.
+  - Respaldo automático offline en `registrar_venta.dart` y `venta_productos.dart`: si se pierde la conexión, la venta se encola en outbox como "a confirmar" y se emite el billete provisional de inmediato.
+  - Resolución interactiva de conflictos (`app/lib/pantallas/hoja_conflictos.dart`): permite reasignar otro número disponible o descartar la venta en conflicto, con aviso talonario `MitiAviso` en la campaña.
+  - Pruebas de API contra `miti.sole.ar`:
+    - `prueba_fase1.py`: 39/39 en verde.
+    - `prueba_fase2.py`: 55/55 en verde.
+    - `prueba_productos.py`: 43/43 en verde.
+    - `prueba_sync.py`: 26/26 en verde (snapshot, push offline, idempotencia, conflicto simultáneo, resolución y pull incremental).
+  - App móvil Flutter (v0.4.0+8): `flutter analyze` 0 issues, `flutter test` 5/5 en verde.
+  - **Última APK publicada:** `https://miti.sole.ar/descargas/miti-0.4.0.apk` (hash SHA256 `6A3160863E0FB355BB6AFC45CBC60C4B741EF76E63B244495714CA5591156F58`).
+
 ## 7. Pasos a seguir, en orden
 
-1. **El usuario prueba la APK 0.3.1 en el celular**:
-   - Verificar que al agregar o editar productos el teclado ya no tape la descripción ni el precio.
-   - Probar una venta siendo dueño de la cuenta principal a cuenta principal o mi cuenta (debe quedar confirmada al instante).
-   - Probar que si vende otro participante a cuenta principal, sí pida confirmación.
-2. **Siguiente fase (Fase 3)**:
-   - Modo sin señal / offline: drift (SQLite) en el celular.
-   - Cola de operaciones (outbox) con UUIDs de idempotencia.
-   - Sincronización `POST /sync/push` y `GET /sync/pull?desde=<secuencia>`.
-   - Resolución de conflictos en ventas simultáneas sin conexión.
+1. **El usuario prueba la APK 0.4.0 en el celular**:
+   - Abrir una campaña de rifa o productos con conexión para que descargue la copia local.
+   - Poner el celular en modo avión / sin señal y registrar una venta: comprobar que la guarda sin error, abre el billete provisional y muestra el aviso de pendiente de sincronizar.
+   - Quitar el modo avión y tocar el botón de sincronizar o hacer pull-to-refresh: comprobar que la venta sube al servidor y queda confirmada.
+   - Si se simula un conflicto vendiendo el mismo número desde dos teléfonos sin señal, el segundo en sincronizar recibe el conflicto y puede elegir otro número libre o descartar la venta desde la hoja de conflictos.
+2. **Siguientes funciones del backlog**:
+   - Liquidación final y cierre de campaña.
+   - Notificaciones push con Firebase Cloud Messaging (FCM).
+   - Exportación de movimientos y balance a PDF y Excel.

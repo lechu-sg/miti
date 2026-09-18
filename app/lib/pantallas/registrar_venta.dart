@@ -3,8 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../estado/sesion.dart';
 import '../nucleo/api.dart';
+import '../nucleo/base_local.dart';
 import '../nucleo/componentes.dart';
 import '../nucleo/formato.dart';
+import '../nucleo/sincronizador.dart';
 import '../nucleo/tema.dart';
 import 'billete.dart';
 
@@ -101,7 +103,49 @@ class _HojaRegistrarVentaState extends ConsumerState<HojaRegistrarVenta> {
     } on ErrorApi catch (e) {
       setState(() => _error = e.mensaje);
     } catch (_) {
-      setState(() => _error = 'No pudimos registrar la venta. Fijate si tenés señal.');
+      // Sin señal / falla de red: guardar en outbox (§5 de DEFINICION.md)
+      final opId = generarUuid();
+      final payload = {
+        'numeros': widget.numeros,
+        'comprador': {
+          'nombre': _nombreControlador.text.trim(),
+          'telefono': _telefonoControlador.text.trim(),
+        },
+        'destino_cobro': _destino,
+      };
+
+      await BaseLocal.instancia.encolarOperacion(
+        widget.campanaId,
+        opId,
+        'vender_rifa',
+        payload,
+      );
+
+      ref.read(sincroProvider(widget.campanaId).notifier).actualizarContadores();
+
+      if (!mounted) return;
+      Navigator.of(context).pop(true);
+
+      mostrarAviso(
+        context,
+        'Venta guardada sin señal. Se confirmará al recuperar internet.',
+      );
+
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => PantallaBillete(
+            campanaNombre: widget.campanaNombre,
+            numeros: widget.numeros,
+            importe: _total,
+            compradorNombre: _nombreControlador.text.trim(),
+            compradorTelefono: _telefonoControlador.text.trim(),
+            vendedorNombre: 'Venta sin señal',
+            codigoCorto: 'PENDIENTE',
+            estaPagado: _destino != 'adeudado',
+            fechaSorteo: widget.fechaSorteo,
+          ),
+        ),
+      );
     } finally {
       if (mounted) setState(() => _cargando = false);
     }

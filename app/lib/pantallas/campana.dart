@@ -10,7 +10,9 @@ import 'billete.dart';
 import 'catalogo_productos.dart';
 import 'compartir_disponibles.dart';
 import 'grilla_numeros.dart';
+import 'hoja_conflictos.dart';
 import 'venta_productos.dart';
+import '../nucleo/sincronizador.dart';
 
 /// La campaña por dentro: cuánto se juntó, dónde está la plata y quiénes son.
 class PantallaCampana extends ConsumerWidget {
@@ -27,6 +29,7 @@ class PantallaCampana extends ConsumerWidget {
     final ventasAsync = ref.watch(ventasProvider(campanaId));
     final movsAsync = ref.watch(movimientosProvider(campanaId));
     final sesionUsuario = ref.watch(sesionProvider).valueOrNull;
+    final sincro = ref.watch(sincroProvider(campanaId));
 
     return Scaffold(
       body: SafeArea(
@@ -78,6 +81,8 @@ class PantallaCampana extends ConsumerWidget {
                 ref.invalidate(recaudacionProvider(campanaId));
                 ref.invalidate(ventasProvider(campanaId));
                 ref.invalidate(movimientosProvider(campanaId));
+                if (esRifa) ref.invalidate(numerosProvider(campanaId));
+                await ref.read(sincroProvider(campanaId).notifier).sincronizar();
               },
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(16, 0, 16, 40),
@@ -89,6 +94,36 @@ class PantallaCampana extends ConsumerWidget {
                         icon: Icon(Icons.arrow_back, color: c.tinta),
                       ),
                       const Spacer(),
+                      IconButton(
+                        tooltip: sincro.sincronizando ? 'Sincronizando...' : 'Sincronizar ahora',
+                        onPressed: sincro.sincronizando
+                            ? null
+                            : () async {
+                                final ok = await ref.read(sincroProvider(campanaId).notifier).sincronizar();
+                                if (context.mounted) {
+                                  if (ok) {
+                                    mostrarAviso(context, 'Campaña sincronizada');
+                                    ref.invalidate(campanaProvider(campanaId));
+                                    ref.invalidate(recaudacionProvider(campanaId));
+                                    ref.invalidate(ventasProvider(campanaId));
+                                    ref.invalidate(movimientosProvider(campanaId));
+                                    if (esRifa) ref.invalidate(numerosProvider(campanaId));
+                                  } else {
+                                    mostrarAviso(context, 'No se pudo sincronizar. Fijate si tenés señal.', error: true);
+                                  }
+                                }
+                              },
+                        icon: sincro.sincronizando
+                            ? SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(strokeWidth: 2, color: c.sello),
+                              )
+                            : Icon(
+                                Icons.sync,
+                                color: sincro.tieneConflictos ? c.selloTexto : c.tinta,
+                              ),
+                      ),
                       if (esAdmin && campana['estado'] == 'borrador')
                         TextButton(
                           onPressed: () => _activar(context, ref),
@@ -120,6 +155,47 @@ class PantallaCampana extends ConsumerWidget {
                     ),
                   ),
                   const SizedBox(height: 16),
+
+                  if (sincro.tieneConflictos) ...[
+                    MitiAviso(
+                      cantidad: sincro.conflictos,
+                      texto: 'Conflictos en ventas sin señal que resolver',
+                      onTap: () {
+                        showModalBottomSheet(
+                          context: context,
+                          isScrollControlled: true,
+                          backgroundColor: Colors.transparent,
+                          builder: (_) => HojaConflictosSync(
+                            campanaId: campanaId,
+                            campanaNombre: campana['nombre'] as String,
+                          ),
+                        );
+                      },
+                    ),
+                    const SizedBox(height: 14),
+                  ] else if (sincro.tienePendientes) ...[
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: c.mostaza.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: c.mostaza.withValues(alpha: 0.5)),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.cloud_upload_outlined, color: c.tinta, size: 20),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              '${sincro.pendientes} venta(s) guardadas sin señal pendientes de subir',
+                              style: t.pie.copyWith(color: c.tinta, fontWeight: FontWeight.w600),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                  ],
 
                   // Ticket de recaudación con datos reales
                   MitiTicket(
