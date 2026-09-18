@@ -15,5 +15,12 @@
 		-Server
 	}
 
+	# Descarga del APK. El listado muestra el archivo y su huella SHA-256.
+	handle_path /descargas* {
+		root * /srv/descargas
+		file_server browse
+		header Cache-Control "no-cache"
+	}
+
 	reverse_proxy api:8000
 }

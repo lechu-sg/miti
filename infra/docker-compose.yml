@@ -16,6 +16,7 @@ services:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - /srv/miti/data/caddy:/data
       - /srv/miti/data/caddy-config:/config
+      - /srv/miti/descargas:/srv/descargas:ro
     environment:
       MITI_DOMINIO: ${MITI_DOMINIO:?falta MITI_DOMINIO}
     depends_on:
