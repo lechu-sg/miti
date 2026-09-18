@@ -121,16 +121,16 @@ Antes de publicar una versión nueva, subí `version:` en `app/pubspec.yaml`. La
   - API ampliada con rutas para números (libres, reservados por 48h, vendidos), ventas con compradores cifrados, destinos de fondos (billetera, efectivo, cuenta principal), subida de comprobantes con hash y detección de duplicados, y métricas de recaudación.
   - Pruebas de API: `prueba_fase1.py` (39/39 en verde) y `prueba_fase2.py` (55/55 en verde).
   - App móvil actualizada con componentes Talonario: grilla interactiva de 10 columnas, selector de destino del dinero, registro de ventas, talón/billete para WhatsApp y pantalla para compartir disponibles en historias/post.
-  - **Última APK publicada:** `https://miti.sole.ar/descargas/miti-0.2.0.apk` (commit `6f72f96`).
+  - **Última APK publicada:** `https://miti.sole.ar/descargas/miti-0.2.1.apk` (hash SHA256 `3e62bf01...`).
+    - En el envío del billete se exporta el PNG real del talón y se abre WhatsApp con la imagen adjunta y el texto predefinido.
+    - Generador de imagen para redes con selección de imagen base desde la galería, recuadro de números personalizable y botón nativo para compartir en redes.
+    - Accesos bien visibles al generador desde la pantalla de campaña y desde la grilla de números.
 
 ## 7. Pasos a seguir, en orden
 
-1. **El usuario prueba la APK 0.2.0 en el celular**:
-   - Crear o activar una rifa (se autogeneran los números).
-   - Probar la grilla de números (filtros, selección, reservar por 48 h y liberar).
-   - Registrar una venta en efectivo o billetera y ver cómo se genera el billete.
-   - Registrar una venta con destino "cuenta principal" y verificar que al titular le aparece el aviso para confirmarla.
-   - Probar la pantalla de "Compartir disponibles" (historias 9:16 y post 4:5).
+1. **El usuario prueba la APK 0.2.1 en el celular**:
+   - Vender un número y comprobar el envío del billete como imagen por WhatsApp.
+   - Probar el generador de imagen de números disponibles con imagen de fondo propia y compartir en redes sociales.
    - Atender cualquier detalle de uso o diseño que reporte.
 2. **Fase 3**, cuando el usuario dé el visto bueno a la APK 0.2.0:
    - Modo sin señal / offline: drift (SQLite) en el celular.

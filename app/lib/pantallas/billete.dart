@@ -1,12 +1,18 @@
+import 'dart:io';
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../nucleo/componentes.dart';
 import '../nucleo/formato.dart';
 import '../nucleo/tema.dart';
 
 /// Pantalla del billete / talón para enviar al comprador.
-class PantallaBillete extends StatelessWidget {
+class PantallaBillete extends StatefulWidget {
   const PantallaBillete({
     super.key,
     required this.campanaNombre,
@@ -18,6 +24,7 @@ class PantallaBillete extends StatelessWidget {
     required this.codigoCorto,
     required this.estaPagado,
     this.fechaSorteo,
+    this.autoCompartir = false,
   });
 
   final String campanaNombre;
@@ -29,25 +36,89 @@ class PantallaBillete extends StatelessWidget {
   final String codigoCorto;
   final bool estaPagado;
   final String? fechaSorteo;
+  final bool autoCompartir;
+
+  @override
+  State<PantallaBillete> createState() => _PantallaBilleteState();
+}
+
+class _PantallaBilleteState extends State<PantallaBillete> {
+  final GlobalKey _ticketKey = GlobalKey();
+  bool _compartiendo = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.autoCompartir) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        // Le damos un momento breve para que renderice el widget antes de capturarlo
+        Future.delayed(const Duration(milliseconds: 350), _enviarWhatsApp);
+      });
+    }
+  }
 
   String _armarTextoCompartir() {
-    final numsStr = numeros.map((n) => n.toString().padLeft(2, '0')).join(', ');
-    final estado = estaPagado ? 'PAGADO' : 'PENDIENTE DE PAGO';
-    return '¡Hola $compradorNombre! Acá tenés tu comprobante de la campaña:\n\n'
-        '🎟️ *$campanaNombre*\n'
+    final numsStr = widget.numeros.map((n) => n.toString().padLeft(2, '0')).join(', ');
+    final estado = widget.estaPagado ? 'PAGADO' : 'PENDIENTE DE PAGO';
+    return '¡Hola ${widget.compradorNombre}! Acá tenés tu comprobante de la campaña:\n\n'
+        '🎟️ *${widget.campanaNombre}*\n'
         '🔢 Números: *$numsStr*\n'
-        '💰 Importe: *${plata(importe)}* ($estado)\n'
-        '🔑 Código: *$codigoCorto*\n'
-        '👤 Vendedor: $vendedorNombre\n'
-        '${fechaSorteo != null ? '📅 Sorteo: $fechaSorteo\n' : ''}'
+        '💰 Importe: *${plata(widget.importe)}* ($estado)\n'
+        '🔑 Código: *${widget.codigoCorto}*\n'
+        '👤 Vendedor: ${widget.vendedorNombre}\n'
+        '${widget.fechaSorteo != null ? '📅 Sorteo: ${widget.fechaSorteo}\n' : ''}'
         '\n¡Muchas gracias por colaborar!';
+  }
+
+  Future<File?> _generarImagen() async {
+    try {
+      final boundary = _ticketKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
+      if (boundary == null) return null;
+
+      final ui.Image image = await boundary.toImage(pixelRatio: 3.0);
+      final ByteData? byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+      if (byteData == null) return null;
+
+      final tempDir = await getTemporaryDirectory();
+      final archivo = File('${tempDir.path}/billete_${widget.codigoCorto}.png');
+      await archivo.writeAsBytes(byteData.buffer.asUint8List());
+      return archivo;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> _enviarWhatsApp() async {
+    if (_compartiendo) return;
+    setState(() => _compartiendo = true);
+
+    try {
+      final archivo = await _generarImagen();
+      final texto = _armarTextoCompartir();
+
+      if (archivo != null) {
+        await SharePlus.instance.share(
+          ShareParams(
+            files: [XFile(archivo.path, mimeType: 'image/png')],
+            text: texto,
+          ),
+        );
+      } else {
+        // Fallback: compartir solo texto
+        await SharePlus.instance.share(ShareParams(text: texto));
+      }
+    } catch (e) {
+      if (mounted) mostrarAviso(context, 'No se pudo abrir el menú de compartir', error: true);
+    } finally {
+      if (mounted) setState(() => _compartiendo = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final c = context.color;
     final t = context.texto;
-    final numsStr = numeros.map((n) => n.toString().padLeft(2, '0')).join(' · ');
+    final numsStr = widget.numeros.map((n) => n.toString().padLeft(2, '0')).join(' · ');
 
     return Scaffold(
       appBar: AppBar(
@@ -63,213 +134,280 @@ class PantallaBillete extends StatelessWidget {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(20, 10, 20, 30),
           children: [
-            // Billete estilo talonario
-            Container(
-              decoration: BoxDecoration(
-                color: c.hoja,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: c.tinta, width: 2),
-                boxShadow: [
-                  BoxShadow(
-                    color: c.tinta.withValues(alpha: 0.08),
-                    blurRadius: 16,
-                    offset: const Offset(0, 6),
-                  ),
-                ],
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  // Encabezado del talón
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    decoration: BoxDecoration(
-                      color: c.tinta,
-                      borderRadius: const BorderRadius.vertical(top: Radius.circular(6)),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Expanded(
-                          child: Text(
-                            campanaNombre.toUpperCase(),
-                            style: t.titular.copyWith(
-                              color: c.tintaSobre,
-                              fontSize: 20,
-                              fontWeight: FontWeight.w900,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                          decoration: BoxDecoration(
-                            border: Border.all(color: c.tintaSobre, width: 1),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Text(
-                            '#$codigoCorto',
-                            style: t.etiqueta.copyWith(
-                              color: c.tintaSobre,
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: 1,
+            // Billete estilo talonario capturable
+            RepaintBoundary(
+              key: _ticketKey,
+              child: Container(
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFBF9F4), // Paleta clara fija para la imagen generada
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: const Color(0xFF1E2A3A), width: 2),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // Encabezado del talón
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      decoration: const BoxDecoration(
+                        color: Color(0xFF1E2A3A),
+                        borderRadius: BorderRadius.vertical(top: Radius.circular(6)),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              widget.campanaNombre.toUpperCase(),
+                              style: const TextStyle(
+                                fontFamily: 'BigShoulders',
+                                color: Color(0xFFFBF9F4),
+                                fontSize: 20,
+                                fontWeight: FontWeight.w900,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
-                        ),
-                      ],
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              border: Border.all(color: const Color(0xFFFBF9F4), width: 1),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              '#${widget.codigoCorto}',
+                              style: const TextStyle(
+                                fontFamily: 'Figtree',
+                                color: Color(0xFFFBF9F4),
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 1,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
 
-                  // Cuerpo del talón
-                  Padding(
-                    padding: const EdgeInsets.all(20),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text('COMPRADOR', style: t.sobrelinea.copyWith(color: c.tintaSuave)),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    compradorNombre,
-                                    style: t.seccion.copyWith(color: c.tinta, fontSize: 20),
-                                  ),
-                                  if (compradorTelefono != null && compradorTelefono!.isNotEmpty) ...[
+                    // Cuerpo del talón
+                    Padding(
+                      padding: const EdgeInsets.all(20),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text(
+                                      'COMPRADOR',
+                                      style: TextStyle(
+                                        fontFamily: 'Figtree',
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w700,
+                                        color: Color(0xFF5F5A4E),
+                                        letterSpacing: 1.2,
+                                      ),
+                                    ),
                                     const SizedBox(height: 2),
                                     Text(
-                                      compradorTelefono!,
-                                      style: t.cuerpo.copyWith(color: c.tintaSuave, fontSize: 13),
+                                      widget.compradorNombre,
+                                      style: const TextStyle(
+                                        fontFamily: 'BigShoulders',
+                                        fontSize: 22,
+                                        fontWeight: FontWeight.w800,
+                                        color: Color(0xFF1E2A3A),
+                                      ),
                                     ),
+                                    if (widget.compradorTelefono != null && widget.compradorTelefono!.isNotEmpty) ...[
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        widget.compradorTelefono!,
+                                        style: const TextStyle(
+                                          fontFamily: 'Figtree',
+                                          fontSize: 13,
+                                          color: Color(0xFF5F5A4E),
+                                        ),
+                                      ),
+                                    ],
                                   ],
-                                ],
-                              ),
-                            ),
-                            // Sello de PAGADO o A PAGAR
-                            Transform.rotate(
-                              angle: -0.1,
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                                decoration: BoxDecoration(
-                                  border: Border.all(
-                                    color: estaPagado ? c.ok : c.sello,
-                                    width: 2.5,
-                                  ),
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                                child: Text(
-                                  estaPagado ? 'PAGADO' : 'A PAGAR',
-                                  style: t.titular.copyWith(
-                                    color: estaPagado ? c.ok : c.sello,
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.w900,
-                                    letterSpacing: 1.5,
-                                  ),
                                 ),
                               ),
-                            ),
-                          ],
-                        ),
+                              // Sello de PAGADO o A PAGAR
+                              Transform.rotate(
+                                angle: -0.1,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                  decoration: BoxDecoration(
+                                    border: Border.all(
+                                      color: widget.estaPagado ? const Color(0xFF2F7A57) : const Color(0xFFB7372A),
+                                      width: 2.5,
+                                    ),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Text(
+                                    widget.estaPagado ? 'PAGADO' : 'A PAGAR',
+                                    style: TextStyle(
+                                      fontFamily: 'BigShoulders',
+                                      color: widget.estaPagado ? const Color(0xFF2F7A57) : const Color(0xFFB7372A),
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w900,
+                                      letterSpacing: 1.5,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
 
-                        const SizedBox(height: 18),
-                        const MitiTroquel(grosor: 1.5),
-                        const SizedBox(height: 18),
+                          const SizedBox(height: 18),
+                          const MitiTroquel(color: Color(0xFFCFC6B2), grosor: 1.5),
+                          const SizedBox(height: 18),
 
-                        // Números asignados
-                        Text(
-                          numeros.length == 1 ? 'NÚMERO ASIGNADO' : 'NÚMEROS ASIGNADOS',
-                          style: t.sobrelinea.copyWith(color: c.tintaSuave),
-                        ),
-                        const SizedBox(height: 4),
-                        FittedBox(
-                          fit: BoxFit.scaleDown,
-                          alignment: Alignment.centerLeft,
-                          child: Text(
-                            numsStr,
-                            style: t.importe.copyWith(
-                              color: c.tinta,
-                              fontSize: numeros.length > 3 ? 32 : 44,
-                              fontWeight: FontWeight.w900,
+                          // Números asignados
+                          Text(
+                            widget.numeros.length == 1 ? 'NÚMERO ASIGNADO' : 'NÚMEROS ASIGNADOS',
+                            style: const TextStyle(
+                              fontFamily: 'Figtree',
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF5F5A4E),
+                              letterSpacing: 1.2,
                             ),
                           ),
-                        ),
-
-                        const SizedBox(height: 16),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text('TOTAL', style: t.sobrelinea.copyWith(color: c.tintaSuave)),
-                                const SizedBox(height: 2),
-                                Text(
-                                  plata(importe),
-                                  style: t.importe.copyWith(color: c.tinta, fontSize: 26),
-                                ),
-                              ],
+                          const SizedBox(height: 4),
+                          FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                              numsStr,
+                              style: TextStyle(
+                                fontFamily: 'BigShoulders',
+                                color: const Color(0xFF1E2A3A),
+                                fontSize: widget.numeros.length > 3 ? 32 : 44,
+                                fontWeight: FontWeight.w900,
+                              ),
                             ),
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.end,
-                              children: [
-                                Text('VENDEDOR', style: t.sobrelinea.copyWith(color: c.tintaSuave)),
-                                const SizedBox(height: 2),
-                                Text(
-                                  vendedorNombre,
-                                  style: t.cuerpo.copyWith(color: c.tinta, fontWeight: FontWeight.w600),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
+                          ),
 
-                  // Pie troquelado
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                    decoration: BoxDecoration(
-                      color: c.papelHundido,
-                      borderRadius: const BorderRadius.vertical(bottom: Radius.circular(6)),
+                          const SizedBox(height: 16),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    'TOTAL',
+                                    style: TextStyle(
+                                      fontFamily: 'Figtree',
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w700,
+                                      color: Color(0xFF5F5A4E),
+                                      letterSpacing: 1.2,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    plata(widget.importe),
+                                    style: const TextStyle(
+                                      fontFamily: 'BigShoulders',
+                                      fontSize: 26,
+                                      fontWeight: FontWeight.w800,
+                                      color: Color(0xFF1E2A3A),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  const Text(
+                                    'VENDEDOR',
+                                    style: TextStyle(
+                                      fontFamily: 'Figtree',
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w700,
+                                      color: Color(0xFF5F5A4E),
+                                      letterSpacing: 1.2,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    widget.vendedorNombre,
+                                    style: const TextStyle(
+                                      fontFamily: 'Figtree',
+                                      color: Color(0xFF1E2A3A),
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.verified_outlined, size: 16, color: c.tintaSuave),
-                        const SizedBox(width: 6),
-                        Text(
-                          'COMPROBANTE VÁLIDO DE LA CAMPAÑA',
-                          style: t.pie.copyWith(color: c.tintaSuave, fontWeight: FontWeight.w700),
-                        ),
-                      ],
+
+                    // Pie troquelado
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFF1ECE0),
+                        borderRadius: BorderRadius.vertical(bottom: Radius.circular(6)),
+                      ),
+                      child: const Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.verified_outlined, size: 16, color: Color(0xFF5F5A4E)),
+                          SizedBox(width: 6),
+                          Text(
+                            'COMPROBANTE VÁLIDO DE LA CAMPAÑA',
+                            style: TextStyle(
+                              fontFamily: 'Figtree',
+                              fontSize: 11,
+                              color: Color(0xFF5F5A4E),
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
 
-            const SizedBox(height: 28),
+            const SizedBox(height: 24),
 
-            // Botón para copiar texto del comprobante
+            // Botón principal: Enviar imagen por WhatsApp
             MitiBoton(
-              texto: 'Copiar mensaje para WhatsApp',
+              texto: 'Enviar billete por WhatsApp',
+              icono: Icons.send_rounded,
+              cargando: _compartiendo,
+              onTap: _enviarWhatsApp,
+            ),
+
+            const SizedBox(height: 10),
+
+            // Botón secundario: Copiar solo texto
+            MitiBoton(
+              texto: 'Copiar texto del mensaje',
               icono: Icons.copy,
+              secundario: true,
               onTap: () {
                 Clipboard.setData(ClipboardData(text: _armarTextoCompartir()));
-                mostrarAviso(context, 'Mensaje del billete copiado al portapapeles');
+                mostrarAviso(context, 'Texto del billete copiado');
               },
             ),
 
-            const SizedBox(height: 12),
+            const SizedBox(height: 10),
 
             MitiBoton(
-              texto: 'Listo',
+              texto: 'Volver a la campaña',
               secundario: true,
               onTap: () => Navigator.of(context).pop(),
             ),

@@ -7,6 +7,7 @@ import '../nucleo/componentes.dart';
 import '../nucleo/formato.dart';
 import '../nucleo/tema.dart';
 import 'billete.dart';
+import 'compartir_disponibles.dart';
 import 'grilla_numeros.dart';
 
 /// La campaña por dentro: cuánto se juntó, dónde está la plata y quiénes son.
@@ -147,6 +148,30 @@ class PantallaCampana extends ConsumerWidget {
                             ),
                           ),
                         );
+                      },
+                    ),
+                    const SizedBox(height: 10),
+                    MitiBoton(
+                      texto: 'Generar imagen para redes',
+                      icono: Icons.photo_camera_back_outlined,
+                      secundario: true,
+                      onTap: () async {
+                        try {
+                          final nums = await ref.read(numerosProvider(campanaId).future);
+                          if (!context.mounted) return;
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => PantallaCompartirDisponibles(
+                                campanaNombre: campana['nombre'] as String,
+                                precioUnitario: config['precio'] as int? ?? 0,
+                                fechaSorteo: config['fecha_sorteo'] as String?,
+                                numeros: nums.cast<Map<String, dynamic>>(),
+                              ),
+                            ),
+                          );
+                        } catch (e) {
+                          if (context.mounted) mostrarAviso(context, 'No se pudieron cargar los números', error: true);
+                        }
                       },
                     ),
                     const SizedBox(height: 14),

@@ -243,6 +243,28 @@ class _PantallaGrillaNumerosState extends ConsumerState<PantallaGrillaNumeros> {
 
           return Column(
             children: [
+              // Botón destacado para compartir números en redes
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+                child: MitiBoton(
+                  texto: 'Compartir números en redes',
+                  icono: Icons.photo_camera_back_outlined,
+                  secundario: true,
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => PantallaCompartirDisponibles(
+                          campanaNombre: widget.campanaNombre,
+                          precioUnitario: widget.precioUnitario,
+                          fechaSorteo: widget.fechaSorteo,
+                          numeros: todos,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+
               // Chips de filtro
               SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
