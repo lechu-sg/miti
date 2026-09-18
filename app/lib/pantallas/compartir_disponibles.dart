@@ -45,7 +45,7 @@ class _PantallaCompartirDisponiblesState extends State<PantallaCompartirDisponib
   final ImagePicker _picker = ImagePicker();
 
   File? _imagenFondo;
-  double _aspectRatioImagen = 9 / 16; // Inicial hasta cargar la imagen
+  double _aspectRatioImagen = 9 / 16;
   bool _generando = false;
   bool _modoExportacion = false;
 
@@ -56,6 +56,44 @@ class _PantallaCompartirDisponiblesState extends State<PantallaCompartirDisponib
   double _boxHeight = 0.35;
 
   _EstiloContraste _estilo = _EstiloContraste.papelClaro;
+
+  // Rango de números visibles
+  late int _minTotal;
+  late int _maxTotal;
+  late int _rangoDesde;
+  late int _rangoHasta;
+
+  // Mapa rápido de estado por número
+  late Map<int, String> _estadoPorNumero;
+
+  @override
+  void initState() {
+    super.initState();
+    _inicializarRango();
+  }
+
+  void _inicializarRango() {
+    _estadoPorNumero = {
+      for (final n in widget.numeros) n['numero'] as int: n['estado'] as String,
+    };
+
+    final todos = widget.numeros.map((n) => n['numero'] as int).toList()..sort();
+    if (todos.isNotEmpty) {
+      _minTotal = todos.first;
+      _maxTotal = todos.last;
+    } else {
+      _minTotal = 0;
+      _maxTotal = 99;
+    }
+
+    final totalCount = _maxTotal - _minTotal + 1;
+    _rangoDesde = _minTotal;
+    if (totalCount <= 200) {
+      _rangoHasta = _maxTotal;
+    } else {
+      _rangoHasta = math.min(_minTotal + 99, _maxTotal);
+    }
+  }
 
   Future<void> _elegirFondo() async {
     try {
@@ -94,7 +132,6 @@ class _PantallaCompartirDisponiblesState extends State<PantallaCompartirDisponib
       _modoExportacion = true;
     });
 
-    // Esperar a que se redibuje el widget sin las manijas de edición
     await WidgetsBinding.instance.endOfFrame;
 
     try {
@@ -110,9 +147,14 @@ class _PantallaCompartirDisponiblesState extends State<PantallaCompartirDisponib
       final archivo = File('${tempDir.path}/miti_disponibles_$ahoraMs.png');
       await archivo.writeAsBytes(byteData.buffer.asUint8List());
 
-      final libres = widget.numeros.where((n) => n['estado'] == 'libre').length;
+      // Contar libres dentro del rango mostrado
+      int libresEnRango = 0;
+      for (int n = _rangoDesde; n <= _rangoHasta; n++) {
+        if (_estadoPorNumero[n] == 'libre') libresEnRango++;
+      }
+
       final texto = '🎟️ ¡Elegí tu número para ${widget.campanaNombre}!\n'
-          'Quedan $libres números disponibles.\n'
+          'Quedan $libresEnRango números disponibles entre el $_rangoDesde y el $_rangoHasta.\n'
           '¡Escribime para reservar el tuyo!';
 
       await SharePlus.instance.share(
@@ -146,8 +188,8 @@ class _PantallaCompartirDisponiblesState extends State<PantallaCompartirDisponib
     required double dxRel,
     required double dyRel,
   }) {
-    const minW = 0.20;
-    const minH = 0.10;
+    const minW = 0.15;
+    const minH = 0.08;
 
     setState(() {
       if (izquierda) {
@@ -176,8 +218,8 @@ class _PantallaCompartirDisponiblesState extends State<PantallaCompartirDisponib
     required double dxRel,
     required double dyRel,
   }) {
-    const minW = 0.20;
-    const minH = 0.10;
+    const minW = 0.15;
+    const minH = 0.08;
 
     setState(() {
       if (horizontal == true) {
@@ -202,16 +244,86 @@ class _PantallaCompartirDisponiblesState extends State<PantallaCompartirDisponib
     });
   }
 
+  void _abrirAjusteRango() {
+    final c = context.color;
+    final t = context.texto;
+    final desdeCtrl = TextEditingController(text: '$_rangoDesde');
+    final hastaCtrl = TextEditingController(text: '$_rangoHasta');
+
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) {
+        return Padding(
+          padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+          child: MitiHoja(
+            titulo: 'RANGO DE NÚMEROS A MOSTRAR',
+            subtitulo: 'TOTAL DE LA RIFA: $_minTotal AL $_maxTotal',
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  'Elegí qué números querés que salgan en esta imagen (máximo recomendado: 200 para que se lean bien).',
+                  style: t.cuerpo.copyWith(color: c.tintaSuave),
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: desdeCtrl,
+                        keyboardType: TextInputType.number,
+                        decoration: InputDecoration(
+                          labelText: 'Desde el número',
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(6)),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: TextField(
+                        controller: hastaCtrl,
+                        keyboardType: TextInputType.number,
+                        decoration: InputDecoration(
+                          labelText: 'Hasta el número',
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(6)),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                MitiBoton(
+                  texto: 'Aplicar rango',
+                  onTap: () {
+                    final d = int.tryParse(desdeCtrl.text.trim()) ?? _rangoDesde;
+                    final h = int.tryParse(hastaCtrl.text.trim()) ?? _rangoHasta;
+                    if (d <= h && d >= _minTotal && h <= _maxTotal) {
+                      setState(() {
+                        _rangoDesde = d;
+                        _rangoHasta = h;
+                      });
+                      Navigator.of(context).pop();
+                    } else {
+                      mostrarAviso(context, 'Rango no válido ($_minTotal a $_maxTotal)', error: true);
+                    }
+                  },
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final c = context.color;
     final t = context.texto;
 
-    final libres = widget.numeros
-        .where((n) => n['estado'] == 'libre')
-        .map((n) => n['numero'] as int)
-        .toList()
-      ..sort();
+    final totalCount = _maxTotal - _minTotal + 1;
 
     return Scaffold(
       appBar: AppBar(
@@ -227,22 +339,22 @@ class _PantallaCompartirDisponiblesState extends State<PantallaCompartirDisponib
             TextButton.icon(
               onPressed: _elegirFondo,
               icon: Icon(Icons.photo_library_outlined, size: 18, color: c.selloTexto),
-              label: Text('Cambiar', style: t.etiqueta.copyWith(color: c.selloTexto)),
+              label: Text('Cambiar foto', style: t.etiqueta.copyWith(color: c.selloTexto)),
             ),
         ],
       ),
       body: SafeArea(
         child: Column(
           children: [
-            // Barra de estilos para el recuadro de números
-            if (_imagenFondo != null)
+            if (_imagenFondo != null) ...[
+              // 1. Selector de estilo de números
               SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                 child: Row(
                   children: [
-                    Text('Estilo números: ', style: t.pie.copyWith(color: c.tintaSuave)),
-                    const SizedBox(width: 6),
+                    Text('Estilo: ', style: t.pie.copyWith(color: c.tintaSuave)),
+                    const SizedBox(width: 4),
                     MitiChip(
                       texto: 'Fondo blanco',
                       activo: _estilo == _EstiloContraste.papelClaro,
@@ -270,7 +382,65 @@ class _PantallaCompartirDisponiblesState extends State<PantallaCompartirDisponib
                 ),
               ),
 
-            // Vista principal: si no hay imagen o canvas interactivo
+              // 2. Selector de rango Desde - Hasta
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                child: Row(
+                  children: [
+                    Text('Números: ', style: t.pie.copyWith(color: c.tintaSuave)),
+                    const SizedBox(width: 4),
+                    // Si hay más de 100 números, mostramos tandas sugeridas
+                    if (totalCount > 100) ...[
+                      // Bloque 1: 0 a 99
+                      MitiChip(
+                        texto: '$_minTotal al ${math.min(_minTotal + 99, _maxTotal)}',
+                        activo: _rangoDesde == _minTotal && _rangoHasta == math.min(_minTotal + 99, _maxTotal),
+                        onTap: () => setState(() {
+                          _rangoDesde = _minTotal;
+                          _rangoHasta = math.min(_minTotal + 99, _maxTotal);
+                        }),
+                      ),
+                      const SizedBox(width: 6),
+                      // Bloque 2: 100 a 199 si existe
+                      if (_maxTotal >= _minTotal + 100) ...[
+                        MitiChip(
+                          texto: '${_minTotal + 100} al ${math.min(_minTotal + 199, _maxTotal)}',
+                          activo: _rangoDesde == _minTotal + 100 && _rangoHasta == math.min(_minTotal + 199, _maxTotal),
+                          onTap: () => setState(() {
+                            _rangoDesde = _minTotal + 100;
+                            _rangoHasta = math.min(_minTotal + 199, _maxTotal);
+                          }),
+                        ),
+                        const SizedBox(width: 6),
+                      ],
+                      // Opción hasta 200 juntos si la rifa llega a 200
+                      if (_maxTotal <= _minTotal + 199 && totalCount > 100) ...[
+                        MitiChip(
+                          texto: '$_minTotal al $_maxTotal (todos)',
+                          activo: _rangoDesde == _minTotal && _rangoHasta == _maxTotal,
+                          onTap: () => setState(() {
+                            _rangoDesde = _minTotal;
+                            _rangoHasta = _maxTotal;
+                          }),
+                        ),
+                        const SizedBox(width: 6),
+                      ],
+                    ],
+                    // Botón para personalizar rango
+                    ActionChip(
+                      avatar: Icon(Icons.tune, size: 14, color: c.tinta),
+                      label: Text('$_rangoDesde a $_rangoHasta', style: t.etiqueta.copyWith(color: c.tinta, fontSize: 11)),
+                      backgroundColor: c.hoja,
+                      side: BorderSide(color: c.tinta, width: 1),
+                      onPressed: _abrirAjusteRango,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+
+            // Vista principal: bienvenida o canvas interactivo
             Expanded(
               child: _imagenFondo == null
                   ? Center(
@@ -312,10 +482,9 @@ class _PantallaCompartirDisponiblesState extends State<PantallaCompartirDisponib
                     )
                   : Center(
                       child: Padding(
-                        padding: const EdgeInsets.all(12),
+                        padding: const EdgeInsets.all(8),
                         child: LayoutBuilder(
                           builder: (context, constraints) {
-                            // Calcular tamaño que ocupará la imagen manteniendo su proporción
                             double viewW = constraints.maxWidth;
                             double viewH = constraints.maxHeight;
 
@@ -333,7 +502,7 @@ class _PantallaCompartirDisponiblesState extends State<PantallaCompartirDisponib
                                 child: Stack(
                                   clipBehavior: Clip.none,
                                   children: [
-                                    // 1. Imagen de fondo limpia
+                                    // 1. Imagen de fondo
                                     Positioned.fill(
                                       child: Image.file(
                                         _imagenFondo!,
@@ -341,21 +510,23 @@ class _PantallaCompartirDisponiblesState extends State<PantallaCompartirDisponib
                                       ),
                                     ),
 
-                                    // 2. Área delimitada con SOLO los números disponibles
+                                    // 2. Área delimitada con exactamente 10 números por fila, espacios libres y solo números
                                     Positioned(
                                       left: _boxLeft * viewW,
                                       top: _boxTop * viewH,
                                       width: _boxWidth * viewW,
                                       height: _boxHeight * viewH,
                                       child: _AreaNumerosDisponibles(
-                                        numeros: libres,
+                                        rangoDesde: _rangoDesde,
+                                        rangoHasta: _rangoHasta,
+                                        estadoPorNumero: _estadoPorNumero,
                                         ancho: _boxWidth * viewW,
                                         alto: _boxHeight * viewH,
                                         estilo: _estilo,
                                       ),
                                     ),
 
-                                    // 3. Cuadro interactivo de recorte / edición (oculto al exportar)
+                                    // 3. Cuadro interactivo de recorte (oculto en exportación)
                                     if (!_modoExportacion)
                                       _CuadroInteractivosEditor(
                                         viewW: viewW,
@@ -381,7 +552,7 @@ class _PantallaCompartirDisponiblesState extends State<PantallaCompartirDisponib
             // Botón inferior para exportar y compartir
             if (_imagenFondo != null)
               Padding(
-                padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
+                padding: const EdgeInsets.fromLTRB(20, 6, 20, 14),
                 child: MitiBoton(
                   texto: 'Compartir imagen en redes',
                   icono: Icons.share_rounded,
@@ -396,77 +567,75 @@ class _PantallaCompartirDisponiblesState extends State<PantallaCompartirDisponib
   }
 }
 
-/// Renderiza exclusivamente los números disponibles dentro del recuadro,
-/// ajustando de forma matemática columnas y tamaño de fuente para llenar el área.
+/// Renderiza la grilla de números:
+/// - Exactamente 10 números por fila.
+/// - Espacio libre (vacío) para números vendidos o reservados.
+/// - Tipografía Big Shoulders más liviana (FontWeight.w600/w700).
+/// - Márgenes reducidos para aprovechar al máximo el área.
+/// - Sin desbordes con FittedBox.
 class _AreaNumerosDisponibles extends StatelessWidget {
   const _AreaNumerosDisponibles({
-    required this.numeros,
+    required this.rangoDesde,
+    required this.rangoHasta,
+    required this.estadoPorNumero,
     required this.ancho,
     required this.alto,
     required this.estilo,
   });
 
-  final List<int> numeros;
+  final int rangoDesde;
+  final int rangoHasta;
+  final Map<int, String> estadoPorNumero;
   final double ancho;
   final double alto;
   final _EstiloContraste estilo;
 
   @override
   Widget build(BuildContext context) {
-    if (numeros.isEmpty) {
-      return Center(
-        child: Text(
-          'SIN NÚMEROS DISPONIBLES',
-          style: TextStyle(
-            fontFamily: 'BigShoulders',
-            fontSize: 16,
-            fontWeight: FontWeight.w900,
-            color: estilo == _EstiloContraste.papelOscuro || estilo == _EstiloContraste.textoBlanco
-                ? Colors.white
-                : const Color(0xFF1E2A3A),
-          ),
-        ),
-      );
-    }
+    final totalEnRango = (rangoHasta - rangoDesde + 1).clamp(1, 1000);
+    const int cols = 10;
+    final int rows = (totalEnRango / cols).ceil();
 
-    final count = numeros.length;
-    final ratio = ancho / math.max(alto, 1.0);
+    // Márgenes mínimos para aprovechar el área
+    const double paddingH = 3.0;
+    const double paddingV = 3.0;
 
-    // Calcular columnas para distribuir equitativamente los números
-    final cols = (math.sqrt(count * ratio * 1.15)).round().clamp(2, 25);
-    final rows = (count / cols).ceil();
+    final double anchoUtil = math.max(ancho - (paddingH * 2), 10.0);
+    final double altoUtil = math.max(alto - (paddingV * 2), 10.0);
 
-    final paddingH = ancho * 0.03;
-    final paddingV = alto * 0.03;
+    final double cellW = anchoUtil / cols;
+    final double cellH = altoUtil / math.max(rows, 1);
 
-    final cellW = (ancho - paddingH * 2) / cols;
-    final cellH = (alto - paddingV * 2) / rows;
-
-    final fontSize = (math.min(cellW * 0.72, cellH * 0.82)).clamp(7.0, 36.0);
+    // Tamaño de fuente calculado para que quepan hasta 3 dígitos sin apretar
+    final maxDigitos = rangoHasta.toString().length;
+    final double fontSize = (math.min(
+      cellW * (maxDigitos >= 3 ? 0.48 : 0.68),
+      cellH * 0.85,
+    )).clamp(6.0, 30.0);
 
     final (Color? bgColor, Color textColor, List<Shadow>? shadows, Border? border) = switch (estilo) {
       _EstiloContraste.papelClaro => (
           const Color(0xFFFBF9F4).withValues(alpha: 0.92),
           const Color(0xFF1E2A3A),
           null,
-          Border.all(color: const Color(0xFF1E2A3A).withValues(alpha: 0.5), width: 1.0),
+          Border.all(color: const Color(0xFF1E2A3A).withValues(alpha: 0.4), width: 1.0),
         ),
       _EstiloContraste.papelOscuro => (
           const Color(0xFF1E2A3A).withValues(alpha: 0.88),
           Colors.white,
           null,
-          Border.all(color: Colors.white.withValues(alpha: 0.6), width: 1.0),
+          Border.all(color: Colors.white.withValues(alpha: 0.5), width: 1.0),
         ),
       _EstiloContraste.textoNegro => (
           null,
           const Color(0xFF1E2A3A),
-          [const Shadow(color: Colors.white, blurRadius: 3)],
+          [const Shadow(color: Colors.white, blurRadius: 2.5)],
           null,
         ),
       _EstiloContraste.textoBlanco => (
           null,
           Colors.white,
-          [const Shadow(color: Colors.black, blurRadius: 3)],
+          [const Shadow(color: Colors.black, blurRadius: 2.5)],
           null,
         ),
     };
@@ -477,35 +646,49 @@ class _AreaNumerosDisponibles extends StatelessWidget {
         borderRadius: BorderRadius.circular(4),
         border: border,
       ),
-      padding: EdgeInsets.symmetric(horizontal: paddingH, vertical: paddingV),
+      padding: const EdgeInsets.symmetric(horizontal: paddingH, vertical: paddingV),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: List.generate(rows, (r) {
-          final startIdx = r * cols;
-          final endIdx = math.min(startIdx + cols, count);
-          final filaNumeros = numeros.sublist(startIdx, endIdx);
-
           return Expanded(
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: filaNumeros.map((n) {
+              children: List.generate(cols, (c) {
+                final numero = rangoDesde + (r * cols) + c;
+                if (numero > rangoHasta) {
+                  return SizedBox(width: cellW);
+                }
+
+                final estaLibre = estadoPorNumero[numero] == 'libre';
+
+                // Si no está libre (vendido o reservado), queda el espacio libre
+                if (!estaLibre) {
+                  return SizedBox(width: cellW);
+                }
+
+                final textoNum = numero < 10 ? '0$numero' : '$numero';
+
                 return SizedBox(
                   width: cellW,
+                  height: cellH,
                   child: Center(
-                    child: Text(
-                      n.toString().padLeft(2, '0'),
-                      style: TextStyle(
-                        fontFamily: 'BigShoulders',
-                        fontSize: fontSize,
-                        fontWeight: FontWeight.w900,
-                        color: textColor,
-                        height: 1.0,
-                        shadows: shadows,
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        textoNum,
+                        style: TextStyle(
+                          fontFamily: 'BigShoulders',
+                          fontSize: fontSize,
+                          fontWeight: FontWeight.w600,
+                          color: textColor,
+                          height: 1.0,
+                          shadows: shadows,
+                        ),
                       ),
                     ),
                   ),
                 );
-              }).toList(),
+              }),
             ),
           );
         }),
@@ -561,7 +744,7 @@ class _CuadroInteractivosEditor extends StatelessWidget {
 
     return Stack(
       children: [
-        // Marco delimitador con borde punteado/sólido y área para mover
+        // Marco delimitador con borde y botón central para mover
         Positioned(
           left: leftPx,
           top: topPx,

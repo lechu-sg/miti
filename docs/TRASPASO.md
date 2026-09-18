@@ -121,17 +121,19 @@ Antes de publicar una versión nueva, subí `version:` en `app/pubspec.yaml`. La
   - API ampliada con rutas para números (libres, reservados por 48h, vendidos), ventas con compradores cifrados, destinos de fondos (billetera, efectivo, cuenta principal), subida de comprobantes con hash y detección de duplicados, y métricas de recaudación.
   - Pruebas de API: `prueba_fase1.py` (39/39 en verde) y `prueba_fase2.py` (55/55 en verde).
   - App móvil actualizada con componentes Talonario: grilla interactiva de 10 columnas, selector de destino del dinero, registro de ventas, talón/billete para WhatsApp y pantalla para compartir disponibles en historias/post.
-  - **Última APK publicada:** `https://miti.sole.ar/descargas/miti-0.2.2.apk` (hash SHA256 `53518706...`).
-    - Generador de disponibles totalmente rediseñado: el usuario selecciona la imagen de fondo de su campaña y ajusta un cuadro delimitador con manijas táctiles (tipo recorte) directamente con los dedos para ubicar los números en el espacio libre.
-    - En el área seleccionada van exclusivamente los números disponibles (sin títulos, precios ni textos adicionales).
-    - Selector rápido de estilo de números (fondo blanco, fondo oscuro, solo negros, solo blancos).
-    - Envío del billete como PNG de alta fidelidad por WhatsApp.
+  - **Última APK publicada:** `https://miti.sole.ar/descargas/miti-0.2.3.apk` (hash SHA256 `3f074a58...`).
+    - Generador de disponibles con grilla fija de 10 columnas por fila.
+    - Los números no disponibles (vendidos o reservados) dejan el casillero en blanco (espacio libre).
+    - Tipografía Big Shoulders con grosor refinado (w600) y márgenes reducidos para máximo aprovechamiento del espacio.
+    - Selector de rango Desde - Hasta para rifas grandes (hasta 200 números por imagen o tandas de a 100).
+    - Ajuste automático de escala para números de 3 dígitos (ej: 200) sin cortes ni desbordes.
 
 ## 7. Pasos a seguir, en orden
 
-1. **El usuario prueba la APK 0.2.2 en el celular**:
-   - Probar el generador de imagen de números disponibles seleccionando un flyer de la campaña y ajustando el cuadro con los dedos.
-   - Compartir en redes y verificar el contraste y que solo salgan los números libres.
+1. **El usuario prueba la APK 0.2.3 en el celular**:
+   - Probar el generador de números con 10 columnas por fila y espacios vacíos para vendidos.
+   - Probar el selector de rango Desde - Hasta (0 a 99, 100 a 199, o personalizado).
+   - Verificar la legibilidad y que el número 200 entre de forma proporcionada.
    - Atender cualquier detalle de uso o diseño que reporte.
 2. **Fase 3**, cuando el usuario dé el visto bueno a la APK 0.2.0:
    - Modo sin señal / offline: drift (SQLite) en el celular.
