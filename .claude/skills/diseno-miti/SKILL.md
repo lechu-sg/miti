@@ -23,23 +23,25 @@ Los nombres son los de `MitiColors` (un `ThemeExtension` de Flutter). **No se us
 | Token | Claro | Oscuro | Uso |
 |---|---|---|---|
 | `papel` | `#FBF9F4` | `#141A23` | Fondo de pantalla |
-| `hoja` | `#FFFFFF` | `#1B222D` | Hojas inferiores, diálogos, campos elevados |
-| `papelHundido` | `#F1ECE0` | `#222B38` | Pestaña activa, fondos de fila presionada |
-| `tinta` | `#1E2A3A` | `#EFE8D8` | Texto principal, bordes de control, relleno de "ticket" |
+| `hoja` | `#FFFFFF` | `#212A38` | Hojas inferiores, diálogos, campos elevados |
+| `papelHundido` | `#F1ECE0` | `#2B3647` | Pestaña activa, fondos de fila presionada |
+| `tinta` | `#1E2A3A` | `#F3EDE0` | Texto principal, bordes de control, relleno de "ticket" |
 | `tintaSobre` | `#FBF9F4` | `#141A23` | Texto sobre un relleno de `tinta` |
-| `tintaSuave` | `#5F5A4E` | `#A9A291` | Texto secundario, etiquetas, leyendas |
-| `troquel` | `#CFC6B2` | `#3A4556` | Líneas punteadas y separadores |
+| `tintaSuave` | `#5F5A4E` | `#B9B2A1` | Texto secundario, etiquetas, leyendas |
+| `troquel` | `#CFC6B2` | `#5A6A80` | Líneas punteadas y separadores |
 | `sello` | `#B7372A` | `#C94A36` | Acción principal, número seleccionado, bordes de alerta |
-| `selloTexto` | `#8E2A20` | `#F08A76` | Texto de alerta y enlaces |
+| `selloTexto` | `#8E2A20` | `#F7A28F` | Texto de alerta y enlaces |
 | `mostaza` | `#E3A72F` | `#F0B84A` | Progreso y metas (solo como relleno, nunca como texto sobre papel) |
-| `vendido` | `#E4DDCB` | `#212935` | Celda de número vendido o reservado en imágenes |
-| `vendidoTexto` | `#A39B88` | `#58606D` | Número vendido dentro de la app (deshabilitado a propósito) |
+| `vendido` | `#E4DDCB` | `#2A3444` | Celda de número vendido o reservado en imágenes |
+| `vendidoTexto` | `#A39B88` | `#7C8799` | Número vendido dentro de la app (deshabilitado a propósito) |
 | `ok` | `#2F7A57` | `#6CC39A` | Confirmado o aprobado (ícono y texto corto) |
 
 **Reglas:**
 - El **"ticket"** (la tarjeta de recaudación) usa `tinta` de fondo y `tintaSobre` de texto. En oscuro se **invierte solo**: papel claro sobre fondo oscuro.
 - `sello` con texto blanco `#FFFFFF` en los botones principales, en los dos modos.
 - **Contraste mínimo:** 4,5:1 para texto normal y 3:1 para texto de 24 px o más y para bordes de control. La única excepción es `vendidoTexto`, que es deshabilitado a propósito.
+- **En oscuro las líneas se pierden:** `troquel` y los separadores tienen que llegar a 3:1 contra `papel` (medido: con `#3A4556` no se veían). Y `hoja` tiene que distinguirse de `papel`, o las tarjetas desaparecen.
+- **Nunca texto de color sobre `sello`:** los avisos de error van con letra **blanca** sobre el rojo. Con `tintaSobre` quedan negros sobre rojo en modo oscuro y no se leen.
 - **Un solo `sello` por pantalla** como acción principal. Si aparecen dos, sobra uno.
 
 ## Tipografía
@@ -68,6 +70,8 @@ Las dos fuentes son OFL. Se **empaquetan** en `assets/fonts` porque la app funci
 - **Troquel:** `2px dashed` para separar partes de un ticket y el borde superior de una hoja inferior. Separadores de lista: `1px dashed troquel`.
 - **Sombras:** solo la hoja inferior (`0 -12 30 tinta@12%`). Ninguna otra superficie lleva sombra: la jerarquía la marcan el borde y la tinta.
 - **Tamaño táctil:** mínimo **48 dp** (recomendación de Android), con botones principales de 52 dp.
+- **Campos de mail:** siempre con teclado de mail, `autofillHints: [AutofillHints.email]` dentro de un `AutofillGroup`, sugerencias activadas, ícono de arroba y envío desde el teclado. Escribir un mail entero a mano es una tarea que la app tiene que evitar.
+- **Errores con el teclado abierto:** el mensaje va **dentro** de la hoja o del formulario, no en un aviso abajo de todo, porque el teclado lo tapa.
 - **Inclinación del sello:** una única pieza de "atención" por pantalla puede ir girada −0,6°. No más.
 
 ## Componentes

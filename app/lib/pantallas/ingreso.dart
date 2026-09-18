@@ -131,13 +131,20 @@ class _PantallaIngresoState extends ConsumerState<PantallaIngreso> {
                     Text(_codigoPedido ? 'TU CÓDIGO' : 'TU MAIL', style: t.sobrelinea.copyWith(color: c.tintaSuave)),
                     const SizedBox(height: 12),
                     if (!_codigoPedido) ...[
-                      TextField(
-                        controller: _email,
-                        keyboardType: TextInputType.emailAddress,
-                        autocorrect: false,
-                        textInputAction: TextInputAction.go,
-                        onSubmitted: (_) => _pedirCodigo(),
-                        decoration: const InputDecoration(hintText: 'nombre@mail.com'),
+                      AutofillGroup(
+                        child: TextField(
+                          controller: _email,
+                          keyboardType: TextInputType.emailAddress,
+                          autocorrect: false,
+                          enableSuggestions: true,
+                          autofillHints: const [AutofillHints.email],
+                          textInputAction: TextInputAction.go,
+                          onSubmitted: (_) => _pedirCodigo(),
+                          decoration: const InputDecoration(
+                            hintText: 'nombre@mail.com',
+                            prefixIcon: Icon(Icons.alternate_email, size: 20),
+                          ),
+                        ),
                       ),
                       const SizedBox(height: 8),
                       Text('Te mandamos un código de 6 números. No hace falta contraseña.',
@@ -152,6 +159,8 @@ class _PantallaIngresoState extends ConsumerState<PantallaIngreso> {
                         keyboardType: TextInputType.number,
                         maxLength: 6,
                         autofocus: true,
+                        // Android ofrece el código del SMS/mail si lo reconoce.
+                        autofillHints: const [AutofillHints.oneTimeCode],
                         inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                         style: t.importe.copyWith(fontSize: 34, color: c.tinta, letterSpacing: 8),
                         textAlign: TextAlign.center,

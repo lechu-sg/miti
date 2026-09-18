@@ -298,14 +298,18 @@ class _HojaInvitar extends ConsumerStatefulWidget {
 
 class _HojaInvitarState extends ConsumerState<_HojaInvitar> {
   bool _trabajando = false;
+  String? _error;
 
   Future<void> _invitar() async {
     final email = widget.email.text.trim();
-    if (!email.contains('@')) {
-      mostrarAviso(context, 'Escribí el mail de la persona', error: true);
+    if (!email.contains('@') || !email.contains('.')) {
+      setState(() => _error = 'Escribí el mail completo de la persona');
       return;
     }
-    setState(() => _trabajando = true);
+    setState(() {
+      _trabajando = true;
+      _error = null;
+    });
     try {
       final r = await ref.read(apiProvider).invitar(widget.campanaId, email);
       if (mounted) {
@@ -313,7 +317,11 @@ class _HojaInvitarState extends ConsumerState<_HojaInvitar> {
         mostrarAviso(context, 'Invitaste a ${r['nombre']}');
       }
     } on ErrorApi catch (e) {
-      if (mounted) mostrarAviso(context, e.mensaje, error: true);
+      // El error se muestra DENTRO de la hoja: con el teclado abierto, un aviso
+      // abajo de todo queda tapado.
+      if (mounted) setState(() => _error = e.mensaje);
+    } catch (_) {
+      if (mounted) setState(() => _error = 'No pudimos conectarnos. ¿Tenés señal?');
     } finally {
       if (mounted) setState(() => _trabajando = false);
     }
@@ -339,13 +347,47 @@ class _HojaInvitarState extends ConsumerState<_HojaInvitar> {
           children: [
             Text('INVITAR A LA CAMPAÑA', style: t.sobrelinea.copyWith(color: c.tintaSuave)),
             const SizedBox(height: 10),
-            TextField(
-              controller: widget.email,
-              autofocus: true,
-              keyboardType: TextInputType.emailAddress,
-              autocorrect: false,
-              decoration: const InputDecoration(labelText: 'Mail de la persona'),
+            AutofillGroup(
+              child: TextField(
+                controller: widget.email,
+                autofocus: true,
+                keyboardType: TextInputType.emailAddress,
+                autocorrect: false,
+                enableSuggestions: true,
+                autofillHints: const [AutofillHints.email],
+                textInputAction: TextInputAction.send,
+                onChanged: (_) {
+                  if (_error != null) setState(() => _error = null);
+                },
+                onSubmitted: (_) => _invitar(),
+                decoration: const InputDecoration(
+                  labelText: 'Mail de la persona',
+                  hintText: 'nombre@mail.com',
+                  prefixIcon: Icon(Icons.alternate_email, size: 20),
+                ),
+              ),
             ),
+            if (_error != null) ...[
+              const SizedBox(height: 10),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                decoration: BoxDecoration(
+                  border: Border.all(color: c.sello, width: 2),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.error_outline, size: 18, color: c.selloTexto),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(_error!,
+                          style: t.cuerpo.copyWith(color: c.selloTexto, fontWeight: FontWeight.w600)),
+                    ),
+                  ],
+                ),
+              ),
+            ],
             const SizedBox(height: 8),
             Text('Tiene que tener cuenta en Miti. Le va a aparecer la invitación al entrar.',
                 style: t.pie.copyWith(color: c.tintaSuave)),

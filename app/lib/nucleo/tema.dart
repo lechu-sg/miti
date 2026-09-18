@@ -52,17 +52,18 @@ class MitiColores extends ThemeExtension<MitiColores> {
 
   static const oscuro = MitiColores(
     papel: Color(0xFF141A23),
-    hoja: Color(0xFF1B222D),
-    papelHundido: Color(0xFF222B38),
-    tinta: Color(0xFFEFE8D8),
+    hoja: Color(0xFF212A38),
+    papelHundido: Color(0xFF2B3647),
+    tinta: Color(0xFFF3EDE0),
     tintaSobre: Color(0xFF141A23),
-    tintaSuave: Color(0xFFA9A291),
-    troquel: Color(0xFF3A4556),
+    tintaSuave: Color(0xFFB9B2A1),
+    // Las líneas tienen que llegar a 3:1 contra el fondo o no se ven.
+    troquel: Color(0xFF5A6A80),
     sello: Color(0xFFC94A36),
-    selloTexto: Color(0xFFF08A76),
+    selloTexto: Color(0xFFF7A28F),
     mostaza: Color(0xFFF0B84A),
-    vendido: Color(0xFF212935),
-    vendidoTexto: Color(0xFF58606D),
+    vendido: Color(0xFF2A3444),
+    vendidoTexto: Color(0xFF7C8799),
     ok: Color(0xFF6CC39A),
   );
 
@@ -249,6 +250,8 @@ ThemeData construirTema(MitiColores c, Brightness brillo) {
       contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
       labelStyle: MitiTextos.base.etiqueta.copyWith(color: c.tintaSuave),
       hintStyle: MitiTextos.base.cuerpo.copyWith(color: c.tintaSuave),
+      prefixIconColor: c.tintaSuave,
+      suffixIconColor: c.tintaSuave,
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(6),
         borderSide: BorderSide(color: c.tinta, width: 1.5),

@@ -375,11 +375,20 @@ class MitiVacio extends StatelessWidget {
 
 void mostrarAviso(BuildContext context, String mensaje, {bool error = false}) {
   final c = context.color;
+  // Con el teclado abierto el aviso queda tapado: lo bajamos antes de mostrarlo.
+  if (error) FocusManager.instance.primaryFocus?.unfocus();
   ScaffoldMessenger.of(context)
     ..hideCurrentSnackBar()
     ..showSnackBar(
       SnackBar(
-        content: Text(mensaje),
+        content: Text(
+          mensaje,
+          // Sobre el rojo del sello, la letra va blanca sí o sí.
+          style: context.texto.cuerpo.copyWith(
+            color: error ? Colors.white : c.tintaSobre,
+            fontWeight: error ? FontWeight.w600 : FontWeight.w400,
+          ),
+        ),
         backgroundColor: error ? c.sello : c.tinta,
         duration: Duration(seconds: error ? 5 : 3),
       ),
