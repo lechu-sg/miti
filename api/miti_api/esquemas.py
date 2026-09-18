@@ -355,6 +355,9 @@ class TransferenciaSugerida(BaseModel):
     actualizada: datetime | None = None
 
 
+TransferenciaLiquidacionSalida = TransferenciaSugerida
+
+
 class OpcionLiquidacion(BaseModel):
     base: str
     recaudado: int
