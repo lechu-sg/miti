@@ -23,12 +23,16 @@ class PantallaBillete extends StatefulWidget {
     required this.vendedorNombre,
     required this.codigoCorto,
     required this.estaPagado,
+    this.itemsProductos,
+    this.entrega,
     this.fechaSorteo,
     this.autoCompartir = false,
   });
 
   final String campanaNombre;
   final List<int> numeros;
+  final List<Map<String, dynamic>>? itemsProductos;
+  final String? entrega;
   final int importe;
   final String compradorNombre;
   final String? compradorTelefono;
@@ -58,8 +62,29 @@ class _PantallaBilleteState extends State<PantallaBillete> {
   }
 
   String _armarTextoCompartir() {
-    final numsStr = widget.numeros.map((n) => n.toString().padLeft(2, '0')).join(', ');
     final estado = widget.estaPagado ? 'PAGADO' : 'PENDIENTE DE PAGO';
+
+    if (widget.itemsProductos != null && widget.itemsProductos!.isNotEmpty) {
+      final lineas = widget.itemsProductos!.map((it) {
+        final cant = it['cantidad'];
+        final nom = it['nombre'];
+        final sub = it['subtotal'] ?? ((it['precio_unitario'] as int? ?? 0) * (cant as int));
+        return '• $cant x $nom: ${plata(sub as int)}';
+      }).join('\n');
+
+      final estadoEntrega = widget.entrega == 'entregado' ? 'ENTREGADO' : 'PENDIENTE';
+
+      return '¡Hola ${widget.compradorNombre}! Acá tenés tu comprobante de compra:\n\n'
+          '🛍️ *${widget.campanaNombre}*\n'
+          '📦 Entrega: *$estadoEntrega*\n\n'
+          'Detalle:\n$lineas\n\n'
+          '💰 Total: *${plata(widget.importe)}* ($estado)\n'
+          '🔑 Código: *${widget.codigoCorto}*\n'
+          '👤 Atendido por: ${widget.vendedorNombre}\n'
+          '\n¡Muchas gracias por tu compra!';
+    }
+
+    final numsStr = widget.numeros.map((n) => n.toString().padLeft(2, '0')).join(', ');
     return '¡Hola ${widget.compradorNombre}! Acá tenés tu comprobante de la campaña:\n\n'
         '🎟️ *${widget.campanaNombre}*\n'
         '🔢 Números: *$numsStr*\n'
@@ -267,31 +292,119 @@ class _PantallaBilleteState extends State<PantallaBillete> {
                           const MitiTroquel(color: Color(0xFFCFC6B2), grosor: 1.5),
                           const SizedBox(height: 18),
 
-                          // Números asignados
-                          Text(
-                            widget.numeros.length == 1 ? 'NÚMERO ASIGNADO' : 'NÚMEROS ASIGNADOS',
-                            style: const TextStyle(
-                              fontFamily: 'Figtree',
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                              color: Color(0xFF5F5A4E),
-                              letterSpacing: 1.2,
+                          if (widget.itemsProductos != null && widget.itemsProductos!.isNotEmpty) ...[
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                const Text(
+                                  'PRODUCTOS',
+                                  style: TextStyle(
+                                    fontFamily: 'Figtree',
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                    color: Color(0xFF5F5A4E),
+                                    letterSpacing: 1.2,
+                                  ),
+                                ),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: widget.entrega == 'entregado'
+                                        ? const Color(0xFF2F7A57).withValues(alpha: 0.15)
+                                        : const Color(0xFFE5A93C).withValues(alpha: 0.2),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: Text(
+                                    widget.entrega == 'entregado' ? 'ENTREGADO' : 'PEDIDO',
+                                    style: TextStyle(
+                                      fontFamily: 'Figtree',
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w800,
+                                      color: widget.entrega == 'entregado'
+                                          ? const Color(0xFF2F7A57)
+                                          : const Color(0xFF8A5D0A),
+                                      letterSpacing: 0.5,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
-                          ),
-                          const SizedBox(height: 4),
-                          FittedBox(
-                            fit: BoxFit.scaleDown,
-                            alignment: Alignment.centerLeft,
-                            child: Text(
-                              numsStr,
-                              style: TextStyle(
-                                fontFamily: 'BigShoulders',
-                                color: const Color(0xFF1E2A3A),
-                                fontSize: widget.numeros.length > 3 ? 32 : 44,
-                                fontWeight: FontWeight.w900,
+                            const SizedBox(height: 8),
+                            for (final it in widget.itemsProductos!) ...[
+                              Padding(
+                                padding: const EdgeInsets.symmetric(vertical: 4),
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      width: 24,
+                                      height: 24,
+                                      alignment: Alignment.center,
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFF1E2A3A).withValues(alpha: 0.08),
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                      child: Text(
+                                        '${it['cantidad']}',
+                                        style: const TextStyle(
+                                          fontFamily: 'BigShoulders',
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.w800,
+                                          color: Color(0xFF1E2A3A),
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        it['nombre'] as String,
+                                        style: const TextStyle(
+                                          fontFamily: 'Figtree',
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w600,
+                                          color: Color(0xFF1E2A3A),
+                                        ),
+                                      ),
+                                    ),
+                                    Text(
+                                      plata(it['subtotal'] ?? ((it['precio_unitario'] as int? ?? 0) * (it['cantidad'] as int))),
+                                      style: const TextStyle(
+                                        fontFamily: 'BigShoulders',
+                                        fontSize: 17,
+                                        fontWeight: FontWeight.w800,
+                                        color: Color(0xFF1E2A3A),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ] else ...[
+                            // Números asignados
+                            Text(
+                              widget.numeros.length == 1 ? 'NÚMERO ASIGNADO' : 'NÚMEROS ASIGNADOS',
+                              style: const TextStyle(
+                                fontFamily: 'Figtree',
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                color: Color(0xFF5F5A4E),
+                                letterSpacing: 1.2,
                               ),
                             ),
-                          ),
+                            const SizedBox(height: 4),
+                            FittedBox(
+                              fit: BoxFit.scaleDown,
+                              alignment: Alignment.centerLeft,
+                              child: Text(
+                                numsStr,
+                                style: TextStyle(
+                                  fontFamily: 'BigShoulders',
+                                  color: const Color(0xFF1E2A3A),
+                                  fontSize: widget.numeros.length > 3 ? 32 : 44,
+                                  fontWeight: FontWeight.w900,
+                                ),
+                              ),
+                            ),
+                          ],
 
                           const SizedBox(height: 16),
                           Row(
@@ -385,7 +498,9 @@ class _PantallaBilleteState extends State<PantallaBillete> {
 
             // Botón principal: Enviar imagen por WhatsApp
             MitiBoton(
-              texto: 'Enviar billete por WhatsApp',
+              texto: (widget.itemsProductos?.isNotEmpty ?? false)
+                  ? 'Enviar comprobante por WhatsApp'
+                  : 'Enviar billete por WhatsApp',
               icono: Icons.send_rounded,
               cargando: _compartiendo,
               onTap: _enviarWhatsApp,

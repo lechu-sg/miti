@@ -199,6 +199,52 @@ class ApiMiti {
   Future<Map<String, dynamic>> subirComprobante(String campanaId, Map<String, dynamic> datos) async =>
       (await pedir('POST', '/campanas/$campanaId/comprobantes', cuerpo: datos))
           as Map<String, dynamic>;
+
+  // Productos y ventas de productos
+  Future<List<dynamic>> productos(String campanaId) async =>
+      (await pedir('GET', '/campanas/$campanaId/productos')) as List<dynamic>;
+
+  Future<Map<String, dynamic>> crearProducto(
+    String campanaId, {
+    required String nombre,
+    required int precio,
+    String? foto,
+  }) async =>
+      (await pedir('POST', '/campanas/$campanaId/productos', cuerpo: {
+        'nombre': nombre,
+        'precio': precio,
+        if (foto != null) 'foto': foto,
+      })) as Map<String, dynamic>;
+
+  Future<Map<String, dynamic>> modificarProducto(
+    String campanaId,
+    String productoId, {
+    String? nombre,
+    int? precio,
+    String? foto,
+    bool? activo,
+  }) async {
+    final cuerpo = <String, dynamic>{};
+    if (nombre != null) cuerpo['nombre'] = nombre;
+    if (precio != null) cuerpo['precio'] = precio;
+    if (foto != null) cuerpo['foto'] = foto;
+    if (activo != null) cuerpo['activo'] = activo;
+    return (await pedir('PATCH', '/campanas/$campanaId/productos/$productoId', cuerpo: cuerpo))
+        as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> venderProductos(String campanaId, Map<String, dynamic> datos) async =>
+      (await pedir('POST', '/campanas/$campanaId/ventas/productos', cuerpo: datos))
+          as Map<String, dynamic>;
+
+  Future<Map<String, dynamic>> actualizarEntrega(
+    String campanaId,
+    String ventaId,
+    String entrega,
+  ) async =>
+      (await pedir('PATCH', '/campanas/$campanaId/ventas/$ventaId/entrega', cuerpo: {
+        'entrega': entrega,
+      })) as Map<String, dynamic>;
 }
 
 /// Un error que vino de la API, ya traducido a algo que se le puede mostrar a la gente.

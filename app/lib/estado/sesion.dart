@@ -73,3 +73,9 @@ final recaudacionProvider =
     FutureProvider.autoDispose.family<Map<String, dynamic>, String>((ref, id) async {
   return ref.watch(apiProvider).recaudacion(id);
 });
+
+final productosProvider =
+    FutureProvider.autoDispose.family<List<dynamic>, String>((ref, id) async {
+  return ref.watch(apiProvider).productos(id);
+});
+

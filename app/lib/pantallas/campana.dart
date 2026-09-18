@@ -7,8 +7,10 @@ import '../nucleo/componentes.dart';
 import '../nucleo/formato.dart';
 import '../nucleo/tema.dart';
 import 'billete.dart';
+import 'catalogo_productos.dart';
 import 'compartir_disponibles.dart';
 import 'grilla_numeros.dart';
+import 'venta_productos.dart';
 
 /// La campaña por dentro: cuánto se juntó, dónde está la plata y quiénes son.
 class PantallaCampana extends ConsumerWidget {
@@ -131,7 +133,7 @@ class PantallaCampana extends ConsumerWidget {
                   ),
                   const SizedBox(height: 14),
 
-                  // Botón para acceder a la grilla y vender números
+                  // Acciones según el tipo de campaña
                   if (esRifa && estaActiva) ...[
                     MitiBoton(
                       texto: 'Ver números y vender',
@@ -175,6 +177,41 @@ class PantallaCampana extends ConsumerWidget {
                       },
                     ),
                     const SizedBox(height: 14),
+                  ] else if (!esRifa) ...[
+                    if (estaActiva) ...[
+                      MitiBoton(
+                        texto: 'Tomar pedido / Vender',
+                        icono: Icons.shopping_bag_outlined,
+                        onTap: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => PantallaVentaProductos(
+                                campanaId: campanaId,
+                                campanaNombre: campana['nombre'] as String,
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                      const SizedBox(height: 10),
+                    ],
+                    MitiBoton(
+                      texto: 'Catálogo de productos',
+                      icono: Icons.inventory_2_outlined,
+                      secundario: true,
+                      onTap: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => PantallaCatalogoProductos(
+                              campanaId: campanaId,
+                              campanaNombre: campana['nombre'] as String,
+                              esAdmin: esAdmin,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                    const SizedBox(height: 14),
                   ],
 
                   // Aviso si hay cobros en cuenta principal esperando confirmación
@@ -195,19 +232,54 @@ class PantallaCampana extends ConsumerWidget {
                   MitiTroquel(color: c.tinta, grosor: 1.5),
                   ..._cajasConSaldos(context, cajas, rec?['cajas']),
 
+                  // Desglose de productos vendidos (en campañas de productos)
+                  if (!esRifa) ...[
+                    Builder(
+                      builder: (ctx) {
+                        final desglose = (rec?['productos_desglose'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+                        if (desglose.isEmpty) return const SizedBox.shrink();
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const SizedBox(height: 26),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text('PRODUCTOS VENDIDOS', style: t.sobrelinea.copyWith(color: c.tintaSuave)),
+                                Text('${desglose.length}', style: t.etiqueta.copyWith(color: c.tintaSuave)),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            MitiTroquel(color: c.tinta, grosor: 1.5),
+                            for (final item in desglose) _FilaDesgloseProducto(item: item),
+                          ],
+                        );
+                      },
+                    ),
+                  ],
+
                   // Ventas recientes
                   if (ventas.isNotEmpty) ...[
                     const SizedBox(height: 26),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text('VENTAS REGISTRADAS', style: t.sobrelinea.copyWith(color: c.tintaSuave)),
+                        Text(
+                          esRifa ? 'VENTAS REGISTRADAS' : 'PEDIDOS Y VENTAS',
+                          style: t.sobrelinea.copyWith(color: c.tintaSuave),
+                        ),
                         Text('${ventas.length}', style: t.etiqueta.copyWith(color: c.tintaSuave)),
                       ],
                     ),
                     const SizedBox(height: 8),
                     MitiTroquel(color: c.tinta, grosor: 1.5),
-                    for (final v in ventas) _FilaVenta(venta: v, campanaNombre: campana['nombre'] as String),
+                    for (final v in ventas)
+                      _FilaVenta(
+                        venta: v,
+                        campanaId: campanaId,
+                        campanaNombre: campana['nombre'] as String,
+                        esRifa: esRifa,
+                      ),
                   ],
 
                   const SizedBox(height: 26),
@@ -429,14 +501,21 @@ class PantallaCampana extends ConsumerWidget {
   }
 }
 
-class _FilaVenta extends StatelessWidget {
-  const _FilaVenta({required this.venta, required this.campanaNombre});
+class _FilaVenta extends ConsumerWidget {
+  const _FilaVenta({
+    required this.venta,
+    required this.campanaId,
+    required this.campanaNombre,
+    required this.esRifa,
+  });
 
   final Map<String, dynamic> venta;
+  final String campanaId;
   final String campanaNombre;
+  final bool esRifa;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final c = context.color;
     final t = context.texto;
 
@@ -445,12 +524,19 @@ class _FilaVenta extends StatelessWidget {
     final compradorTelefono = comprador['telefono'] as String?;
     final vendedorNombre = venta['vendedor_nombre'] as String;
     final numeros = (venta['numeros'] as List).cast<int>();
+    final itemsProductos = (venta['items_productos'] as List?)?.cast<Map<String, dynamic>>() ?? [];
     final importe = venta['importe'] as int;
     final codigoCorto = venta['codigo_corto'] as String;
     final saldoAdeudado = venta['saldo_adeudado'] as int? ?? 0;
     final estaPagado = saldoAdeudado == 0;
+    final entrega = venta['entrega'] as String? ?? 'pedido';
+    final esEntregado = entrega == 'entregado';
 
     final numsStr = numeros.map((n) => n.toString().padLeft(2, '0')).join(', ');
+    final resumenProd = itemsProductos.map((p) => '${p['cantidad']}x ${p['nombre']}').join(', ');
+    final detalleTexto = esRifa
+        ? 'Nros: $numsStr · Por $vendedorNombre'
+        : '${resumenProd.isNotEmpty ? resumenProd : 'Productos'} · Por $vendedorNombre';
 
     return InkWell(
       onTap: () {
@@ -459,6 +545,8 @@ class _FilaVenta extends StatelessWidget {
             builder: (_) => PantallaBillete(
               campanaNombre: campanaNombre,
               numeros: numeros,
+              itemsProductos: itemsProductos.isNotEmpty ? itemsProductos : null,
+              entrega: entrega,
               importe: importe,
               compradorNombre: compradorNombre,
               compradorTelefono: compradorTelefono,
@@ -480,8 +568,14 @@ class _FilaVenta extends StatelessWidget {
                 children: [
                   Row(
                     children: [
-                      Text(compradorNombre, style: t.cuerpo.copyWith(fontWeight: FontWeight.w700, color: c.tinta)),
+                      Flexible(
+                        child: Text(
+                          compradorNombre,
+                          style: t.cuerpo.copyWith(fontWeight: FontWeight.w700, color: c.tinta),
+                        ),
+                      ),
                       const SizedBox(width: 8),
+                      // Chip de Pago
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                         decoration: BoxDecoration(
@@ -497,10 +591,69 @@ class _FilaVenta extends StatelessWidget {
                           ),
                         ),
                       ),
+                      // Chip de Entrega (en productos)
+                      if (!esRifa) ...[
+                        const SizedBox(width: 6),
+                        InkWell(
+                          onTap: () async {
+                            try {
+                              final api = ref.read(apiProvider);
+                              final nuevo = esEntregado ? 'pedido' : 'entregado';
+                              await api.actualizarEntrega(campanaId, venta['id'] as String, nuevo);
+                              ref.invalidate(ventasProvider(campanaId));
+                              if (context.mounted) {
+                                mostrarAviso(
+                                  context,
+                                  nuevo == 'entregado'
+                                      ? 'Pedido marcado como entregado'
+                                      : 'Pedido marcado como pendiente',
+                                );
+                              }
+                            } catch (e) {
+                              if (context.mounted) {
+                                mostrarAviso(context, 'No se pudo actualizar la entrega', error: true);
+                              }
+                            }
+                          },
+                          borderRadius: BorderRadius.circular(4),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: esEntregado
+                                  ? c.ok.withValues(alpha: 0.15)
+                                  : c.mostaza.withValues(alpha: 0.25),
+                              borderRadius: BorderRadius.circular(4),
+                              border: Border.all(
+                                color: esEntregado ? c.ok : c.tinta.withValues(alpha: 0.3),
+                                width: 1,
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  esEntregado ? Icons.check : Icons.inventory_2_outlined,
+                                  size: 10,
+                                  color: esEntregado ? c.ok : c.tinta,
+                                ),
+                                const SizedBox(width: 3),
+                                Text(
+                                  esEntregado ? 'ENTREGADO' : 'PEDIDO',
+                                  style: t.pie.copyWith(
+                                    color: esEntregado ? c.ok : c.tinta,
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 9,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                   const SizedBox(height: 2),
-                  Text('Nros: $numsStr · Por $vendedorNombre', style: t.pie.copyWith(color: c.tintaSuave)),
+                  Text(detalleTexto, style: t.pie.copyWith(color: c.tintaSuave)),
                 ],
               ),
             ),
@@ -513,6 +666,42 @@ class _FilaVenta extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _FilaDesgloseProducto extends StatelessWidget {
+  const _FilaDesgloseProducto({required this.item});
+
+  final Map<String, dynamic> item;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.color;
+    final t = context.texto;
+    final nombre = item['nombre'] as String;
+    final cant = item['cantidad_vendida'] as int;
+    final recaudado = item['recaudado'] as int;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
+      decoration: BoxDecoration(border: Border(bottom: BorderSide(color: c.troquel))),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(nombre, style: t.cuerpo.copyWith(fontWeight: FontWeight.w600, color: c.tinta)),
+                Text('$cant ${cant == 1 ? 'unidad vendida' : 'unidades vendidas'}',
+                    style: t.pie.copyWith(color: c.tintaSuave)),
+              ],
+            ),
+          ),
+          Text(plata(recaudado), style: t.cifra.copyWith(color: c.tinta, fontSize: 18)),
+        ],
       ),
     );
   }
