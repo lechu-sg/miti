@@ -78,8 +78,8 @@ async def registrar_sorteo(
             vendedor_id = v.vendedor_id
             vendedor_nombre = v.vendedor.nombre
             if v.comprador:
-                ganador_nombre = cripto.descifrar_texto(v.comprador.nombre_cifrado)
-                ganador_telefono = cripto.descifrar_texto(v.comprador.telefono_cifrado)
+                ganador_nombre = cripto.descifrar(v.comprador.nombre_cifrado)
+                ganador_telefono = cripto.descifrar(v.comprador.telefono_cifrado)
 
     if num_sorteado and num_sorteado.estado == "vendido" and num_sorteado.venta_id:
         estado_resultado = "ganador_encontrado"

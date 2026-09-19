@@ -158,9 +158,9 @@ async def exportar_excel(
         comp_nom = "Anónimo"
         comp_tel = "-"
         if v.comprador:
-            comp_nom = cripto.descifrar_texto(v.comprador.nombre_cifrado)
+            comp_nom = cripto.descifrar(v.comprador.nombre_cifrado)
             if ctx.es_admin or v.vendedor_id == ctx.usuario.id:
-                comp_tel = cripto.descifrar_texto(v.comprador.telefono_cifrado)
+                comp_tel = cripto.descifrar(v.comprador.telefono_cifrado)
             else:
                 comp_tel = "Oculto (privacidad)"
 
