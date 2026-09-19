@@ -240,7 +240,7 @@ p2 = sort[1]
 probar("p2 resultado siguiente vendido", "siguiente_vendido", p2["estado_resultado"])
 probar("p2 número ganador es 1 (no repite 77)", 1, p2["numero_ganador"])
 probar("p2 ganador es Comprador Ana", "Comprador Ana", p2["ganador_nombre"])
-probar("p2 vendedor fue Ana Administradora", "Ana Administradora", p2["vendedor_nombre"])
+probar("p2 vendedor fue Ana Admin", "Ana Admin", p2["vendedor_nombre"])
 
 # Consultar sorteo registrado (GET devuelve lista)
 st, sort_get = llamar("GET", f"/campanas/{camp_id}/sorteo", token=t_beto)
