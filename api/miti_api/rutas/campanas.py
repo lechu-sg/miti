@@ -429,7 +429,7 @@ async def editar_premios(
             accion="editar_premios",
             objeto="campana",
             objeto_id=ctx.campana.id,
-            detalles={"cantidad": len(datos.premios), "premios": datos.premios},
+            detalle={"cantidad": len(datos.premios), "premios": datos.premios},
         )
     )
     await s.commit()

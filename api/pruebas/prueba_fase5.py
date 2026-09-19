@@ -207,9 +207,14 @@ st, camp_premios = llamar("PUT", f"/campanas/{camp_id}/premios", token=t_ana, cu
     "premios": ["Moto 110cc 0km", "Smart TV 50 pulgadas"],
 })
 probar("editar premios 200", 200, st)
-probar("2 premios en config", 2, len(camp_premios["config"]["premios"]))
-probar("primer premio config", "Moto 110cc 0km", camp_premios["config"]["premios"][0])
-probar("segundo premio config", "Smart TV 50 pulgadas", camp_premios["config"]["premios"][1])
+probar("2 premios en respuesta", 2, len(camp_premios))
+probar("primer premio respuesta", "Moto 110cc 0km", camp_premios[0])
+probar("segundo premio respuesta", "Smart TV 50 pulgadas", camp_premios[1])
+
+# Verificar que GET campaña refleja los premios
+st, c_prem = llamar("GET", f"/campanas/{camp_id}", token=t_beto)
+probar("campaña config tiene 2 premios", 2, len(c_prem["config"]["premios"]))
+
 
 # Ana (admin) registra sorteo oficial:
 # Premio 1: sale 77 (vendido a Pepe Ganador) -> ganador directo
