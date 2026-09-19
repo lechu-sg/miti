@@ -198,25 +198,56 @@ v50_obj = next(v for v in ventas_list if v["id"] == v_beto_id)
 probar("venta figura anulada", "anulada", v50_obj["estado"])
 
 print("\n== 5. Sorteo y Ganador (§3.3 y §7.8) ==")
-# Ana (admin) registra sorteo oficial: salió el número 77
+# Beto (no admin) intenta editar premios -> 403
+st, _ = llamar("PUT", f"/campanas/{camp_id}/premios", token=t_beto, cuerpo={"premios": ["Intento"]})
+probar("participante no puede editar premios 403", 403, st)
+
+# Ana (admin) edita los premios de la campaña
+st, camp_premios = llamar("PUT", f"/campanas/{camp_id}/premios", token=t_ana, cuerpo={
+    "premios": ["Moto 110cc 0km", "Smart TV 50 pulgadas"],
+})
+probar("editar premios 200", 200, st)
+probar("2 premios en config", 2, len(camp_premios["config"]["premios"]))
+probar("primer premio config", "Moto 110cc 0km", camp_premios["config"]["premios"][0])
+probar("segundo premio config", "Smart TV 50 pulgadas", camp_premios["config"]["premios"][1])
+
+# Ana (admin) registra sorteo oficial:
+# Premio 1: sale 77 (vendido a Pepe Ganador) -> ganador directo
+# Premio 2: sale 12 (no vendido; siguiente vendido > 12 es 77 pero ya ganó; wrap around -> número 1 de Comprador Ana)
 st, sort = llamar("POST", f"/campanas/{camp_id}/sorteo", token=t_ana, cuerpo={
-    "numero_sorteado": 77,
-    "premio": "Moto 110cc 0km",
+    "items": [
+        {"orden": 1, "numero_sorteado": 77, "premio": "Moto 110cc 0km"},
+        {"orden": 2, "numero_sorteado": 12, "premio": "Smart TV 50 pulgadas"},
+    ],
 })
 probar("registrar sorteo 201", 201, st)
-probar("resultado ganador encontrado", "ganador_encontrado", sort["estado_resultado"])
-probar("número ganador es 77", 77, sort["numero_ganador"])
-probar("ganador es Pepe Ganador", "Pepe Ganador", sort["ganador_nombre"])
-probar("vendedor fue Beto Vendedor", "Beto Vendedor", sort["vendedor_nombre"])
+probar("retorna 2 resultados de sorteo", 2, len(sort))
 
-# Consultar sorteo registrado
+# Validar 1° premio
+p1 = sort[0]
+probar("p1 resultado ganador encontrado", "ganador_encontrado", p1["estado_resultado"])
+probar("p1 número ganador es 77", 77, p1["numero_ganador"])
+probar("p1 ganador es Pepe Ganador", "Pepe Ganador", p1["ganador_nombre"])
+probar("p1 vendedor fue Beto Vendedor", "Beto Vendedor", p1["vendedor_nombre"])
+
+# Validar 2° premio (exclusión de 77 que ya ganó -> siguiente disponible es 1)
+p2 = sort[1]
+probar("p2 resultado siguiente vendido", "siguiente_vendido", p2["estado_resultado"])
+probar("p2 número ganador es 1 (no repite 77)", 1, p2["numero_ganador"])
+probar("p2 ganador es Comprador Ana", "Comprador Ana", p2["ganador_nombre"])
+probar("p2 vendedor fue Ana Administradora", "Ana Administradora", p2["vendedor_nombre"])
+
+# Consultar sorteo registrado (GET devuelve lista)
 st, sort_get = llamar("GET", f"/campanas/{camp_id}/sorteo", token=t_beto)
 probar("Beto consulta sorteo 200", 200, st)
-probar("mismo número ganador", 77, sort_get["numero_ganador"])
+probar("GET devuelve 2 premios", 2, len(sort_get))
+probar("mismo número ganador p1", 77, sort_get[0]["numero_ganador"])
+probar("mismo número ganador p2", 1, sort_get[1]["numero_ganador"])
 
 # Campaña pasa a sorteada
 st, camp_act = llamar("GET", f"/campanas/{camp_id}", token=t_ana)
 probar("campaña pasó a estado sorteada", "sorteada", camp_act["estado"])
+
 
 print("\n== 6. Exportación a Excel y PDF (§3.10 y §7.5) ==")
 # Descargar Excel

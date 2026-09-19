@@ -15,6 +15,7 @@ from ..esquemas import (
     CambiarEstado,
     CampanaDetalle,
     CampanaSalida,
+    EditarPremiosEntrada,
     IntegranteSalida,
     InvitacionSalida,
     Invitar,
@@ -400,3 +401,37 @@ async def cajas(ctx: Contexto = Depends(contexto_activo), s: AsyncSession = Depe
         )
         for c, u in filas
     ]
+
+
+@ruteador.put("/campanas/{campana_id}/premios", response_model=list[str])
+async def editar_premios(
+    datos: EditarPremiosEntrada,
+    ctx: Contexto = Depends(contexto_admin),
+    s: AsyncSession = Depends(sesion),
+) -> list[str]:
+    """Modifica la lista ordenada y cantidad de premios de una rifa (§3.3)."""
+    if ctx.campana.tipo != "rifa":
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "la campaña no es una rifa")
+    if ctx.campana.estado in ("sorteada", "liquidada", "archivada"):
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            f"no se pueden modificar los premios en estado {ctx.campana.estado}",
+        )
+
+    nueva_config = dict(ctx.campana.config) if ctx.campana.config else {}
+    nueva_config["premios"] = datos.premios
+    ctx.campana.config = nueva_config
+
+    s.add(
+        Historial(
+            campana_id=ctx.campana.id,
+            actor_id=ctx.usuario.id,
+            accion="editar_premios",
+            objeto="campana",
+            objeto_id=ctx.campana.id,
+            detalles={"cantidad": len(datos.premios), "premios": datos.premios},
+        )
+    )
+    await s.commit()
+    return datos.premios
+

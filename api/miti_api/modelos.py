@@ -124,7 +124,9 @@ class Campana(Base):
     liquidacion: Mapped["Liquidacion | None"] = relationship(back_populates="campana", uselist=False, lazy="selectin")
     transferencias_liq: Mapped[list["TransferenciaLiquidacion"]] = relationship(back_populates="campana", lazy="selectin")
     gastos: Mapped[list["Gasto"]] = relationship(back_populates="campana", lazy="selectin")
-    sorteo: Mapped["Sorteo | None"] = relationship(back_populates="campana", uselist=False, lazy="selectin")
+    sorteos: Mapped[list["Sorteo"]] = relationship(
+        back_populates="campana", cascade="all, delete-orphan", order_by="Sorteo.orden", lazy="selectin"
+    )
 
 
 class Integrante(Base):
@@ -463,6 +465,7 @@ class Sorteo(Base):
     campana_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("campanas.id", ondelete="CASCADE"), primary_key=True
     )
+    orden: Mapped[int] = mapped_column(Integer, primary_key=True, default=1)
     numero_sorteado: Mapped[int] = mapped_column(Integer, nullable=False)
     numero_ganador: Mapped[int | None] = mapped_column(Integer)
     premio: Mapped[str | None] = mapped_column(String(100))
@@ -480,6 +483,6 @@ class Sorteo(Base):
     creado_por: Mapped[uuid.UUID] = mapped_column(ForeignKey("usuarios.id"), nullable=False)
     creado: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
-    campana: Mapped["Campana"] = relationship(back_populates="sorteo")
+    campana: Mapped["Campana"] = relationship(back_populates="sorteos")
 
 

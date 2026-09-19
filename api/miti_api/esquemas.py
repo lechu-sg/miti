@@ -51,6 +51,7 @@ class ConfigRifa(BaseModel):
     sorteo: Literal["externo", "interno"] = "externo"
     fecha_sorteo: date | None = None
     si_no_se_vendio: Literal["resortear", "desierto", "siguiente"] = "resortear"
+    premios: list[str] = Field(default_factory=lambda: ["Primer Premio"])
 
     @field_validator("hasta")
     @classmethod
@@ -61,6 +62,32 @@ class ConfigRifa(BaseModel):
         if desde is not None and (v - desde + 1) > 100_000:
             raise ValueError("el rango no puede superar los 100.000 números")
         return v
+
+    @field_validator("premios")
+    @classmethod
+    def _validar_premios(cls, v: list[str]) -> list[str]:
+        limpios = [p.strip() for p in v if p.strip()]
+        if not limpios:
+            return ["Primer Premio"]
+        for p in limpios:
+            if len(p) > 100:
+                raise ValueError("la descripción del premio no puede superar los 100 caracteres")
+        return limpios
+
+
+class EditarPremiosEntrada(BaseModel):
+    premios: list[str] = Field(min_length=1)
+
+    @field_validator("premios")
+    @classmethod
+    def _validar_premios(cls, v: list[str]) -> list[str]:
+        limpios = [p.strip() for p in v if p.strip()]
+        if not limpios:
+            raise ValueError("debe haber al menos un premio con descripción")
+        for p in limpios:
+            if len(p) > 100:
+                raise ValueError("la descripción del premio no puede superar los 100 caracteres")
+        return limpios
 
 
 class NuevaCampana(BaseModel):
@@ -441,13 +468,25 @@ class SolicitarAnulacionEntrada(BaseModel):
 
 
 # Sorteos de rifa (§3.3 y §7.8)
-class RegistrarSorteoEntrada(BaseModel):
+class PremioSorteoEntrada(BaseModel):
+    orden: int = Field(default=1, ge=1)
     numero_sorteado: int = Field(ge=0)
     premio: str | None = Field(default=None, max_length=100)
 
 
+class RegistrarSorteoEntrada(BaseModel):
+    items: list[PremioSorteoEntrada] | None = None
+    # Retrocompatibilidad para premio único
+    numero_sorteado: int | None = Field(default=None, ge=0)
+    premio: str | None = Field(default=None, max_length=100)
+    regla_no_vendido: str | None = None
+
+
 class SorteoSalida(BaseModel):
+    model_config = {"from_attributes": True}
+
     campana_id: uuid.UUID
+    orden: int = 1
     numero_sorteado: int
     numero_ganador: int | None = None
     premio: str | None = None
@@ -460,5 +499,6 @@ class SorteoSalida(BaseModel):
     codigo_corto: str | None = None
     creado_por: uuid.UUID
     creado: datetime
+
 
 
