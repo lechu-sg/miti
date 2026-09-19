@@ -11,6 +11,7 @@ import 'catalogo_productos.dart';
 import 'compartir_disponibles.dart';
 import 'grilla_numeros.dart';
 import 'hoja_conflictos.dart';
+import 'liquidacion.dart';
 import 'venta_productos.dart';
 import '../nucleo/sincronizador.dart';
 
@@ -54,6 +55,8 @@ class PantallaCampana extends ConsumerWidget {
             final esRifa = campana['tipo'] == 'rifa';
             final config = (campana['config'] as Map).cast<String, dynamic>();
             final estaActiva = campana['estado'] == 'activa';
+            final estaCerrada = campana['estado'] == 'cerrada' || campana['estado'] == 'sorteada';
+            final estaLiquidada = campana['estado'] == 'liquidada';
 
             final rec = recAsync.valueOrNull;
             final cobrado = rec?['cobrado'] as int? ?? 0;
@@ -128,6 +131,39 @@ class PantallaCampana extends ConsumerWidget {
                         TextButton(
                           onPressed: () => _activar(context, ref),
                           child: Text('Activar', style: t.etiqueta.copyWith(color: c.selloTexto)),
+                        ),
+                      if (esAdmin && estaActiva)
+                        TextButton(
+                          onPressed: () => _cerrarCampana(context, ref, campana['nombre'] as String),
+                          child: Text('Cerrar', style: t.etiqueta.copyWith(color: c.selloTexto)),
+                        ),
+                      if (estaCerrada)
+                        TextButton(
+                          onPressed: () => Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => PantallaLiquidacion(
+                                campanaId: campanaId,
+                                campanaNombre: campana['nombre'] as String,
+                                esAdmin: esAdmin,
+                                estadoCampana: campana['estado'] as String,
+                              ),
+                            ),
+                          ),
+                          child: Text('Liquidar', style: t.etiqueta.copyWith(color: c.selloTexto)),
+                        ),
+                      if (estaLiquidada)
+                        TextButton(
+                          onPressed: () => Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => PantallaLiquidacion(
+                                campanaId: campanaId,
+                                campanaNombre: campana['nombre'] as String,
+                                esAdmin: esAdmin,
+                                estadoCampana: 'liquidada',
+                              ),
+                            ),
+                          ),
+                          child: Text('Liquidación', style: t.etiqueta.copyWith(color: c.ok)),
                         ),
                     ],
                   ),
@@ -208,6 +244,93 @@ class PantallaCampana extends ConsumerWidget {
                     talonAbajo: esRifa ? 'de $totalesCount nros' : (activos.length == 1 ? 'integrante' : 'integrantes'),
                   ),
                   const SizedBox(height: 14),
+
+                  // Aviso y acceso a Liquidación según estado
+                  if (estaLiquidada) ...[
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: c.ok.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: c.ok),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.check_circle_outline, color: c.ok, size: 22),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('CAMPAÑA LIQUIDADA', style: t.etiqueta.copyWith(color: c.ok, fontWeight: FontWeight.bold)),
+                                Text('Se fijaron las transferencias y el reparto entre integrantes.', style: t.pie.copyWith(color: c.tinta)),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    MitiBoton(
+                      texto: 'Ver reparto y transferencias',
+                      icono: Icons.receipt_long_outlined,
+                      onTap: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => PantallaLiquidacion(
+                              campanaId: campanaId,
+                              campanaNombre: campana['nombre'] as String,
+                              esAdmin: esAdmin,
+                              estadoCampana: 'liquidada',
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                    const SizedBox(height: 14),
+                  ] else if (estaCerrada) ...[
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: c.mostaza.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: c.mostaza.withValues(alpha: 0.8)),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.lock_outline, color: c.tinta, size: 22),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('CAMPAÑA CERRADA', style: t.etiqueta.copyWith(color: c.tinta, fontWeight: FontWeight.bold)),
+                                Text('No se pueden hacer más ventas. Lista para liquidar.', style: t.pie.copyWith(color: c.tintaSuave)),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    MitiBoton(
+                      texto: esAdmin ? 'Simular y liquidar campaña' : 'Ver simulación de liquidación',
+                      icono: Icons.balance_outlined,
+                      onTap: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => PantallaLiquidacion(
+                              campanaId: campanaId,
+                              campanaNombre: campana['nombre'] as String,
+                              esAdmin: esAdmin,
+                              estadoCampana: campana['estado'] as String,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                    const SizedBox(height: 14),
+                  ],
 
                   // Acciones según el tipo de campaña
                   if (esRifa && estaActiva) ...[
@@ -373,6 +496,15 @@ class PantallaCampana extends ConsumerWidget {
                   ),
                   const SizedBox(height: 4),
                   for (final i in [...activos, ...invitados]) _FilaIntegrante(integrante: i),
+                  if (esAdmin && estaActiva) ...[
+                    const SizedBox(height: 28),
+                    MitiBoton(
+                      texto: 'Cerrar campaña para liquidar',
+                      icono: Icons.lock_clock_outlined,
+                      secundario: true,
+                      onTap: () => _cerrarCampana(context, ref, campana['nombre'] as String),
+                    ),
+                  ],
                 ],
               ),
             );
@@ -559,6 +691,62 @@ class PantallaCampana extends ConsumerWidget {
       if (context.mounted) mostrarAviso(context, 'La campaña quedó activa');
     } on ErrorApi catch (e) {
       if (context.mounted) mostrarAviso(context, e.mensaje, error: true);
+    }
+  }
+
+  Future<void> _cerrarCampana(BuildContext context, WidgetRef ref, String campanaNombre) async {
+    final confirma = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: context.color.hoja,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+        title: Text('¿Cerrar la campaña?', style: context.texto.seccion),
+        content: Text(
+          'Al cerrar la campaña no se podrán registrar más ventas ni reservas.\n\n'
+          'Podrás simular la liquidación en Base Cobrada o Base Vendida y equilibrar los saldos del grupo.',
+          style: context.texto.cuerpo,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: Text('Cancelar', style: TextStyle(color: context.color.tintaSuave)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: context.color.sello,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+            ),
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Cerrar campaña'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirma != true || !context.mounted) return;
+
+    try {
+      await ref.read(apiProvider).cambiarEstado(campanaId, 'cerrada');
+      ref.invalidate(campanaProvider(campanaId));
+      ref.invalidate(campanasProvider);
+      if (context.mounted) {
+        mostrarAviso(context, 'Campaña cerrada para ventas');
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => PantallaLiquidacion(
+              campanaId: campanaId,
+              campanaNombre: campanaNombre,
+              esAdmin: true,
+              estadoCampana: 'cerrada',
+            ),
+          ),
+        );
+      }
+    } on ErrorApi catch (e) {
+      if (context.mounted) mostrarAviso(context, e.mensaje, error: true);
+    } catch (_) {
+      if (context.mounted) mostrarAviso(context, 'Fijate si tenés señal.', error: true);
     }
   }
 

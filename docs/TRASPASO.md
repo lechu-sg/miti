@@ -146,14 +146,38 @@ Antes de publicar una versión nueva, subí `version:` en `app/pubspec.yaml`. La
   - App móvil Flutter (v0.4.0+8): `flutter analyze` 0 issues, `flutter test` 5/5 en verde.
   - **Última APK publicada:** `https://miti.sole.ar/descargas/miti-0.4.0.apk` (hash SHA256 `6A3160863E0FB355BB6AFC45CBC60C4B741EF76E63B244495714CA5591156F58`).
 
+- **Fase 4 (Cierre y Liquidación de Campaña en partes iguales §3.9): HECHA (v0.5.0).**
+  - Migración 0006 aplicada en el VPS (`liquidaciones` con campana_id PK, base, neto, parte, recaudado, gastos, detalle JSONB, confirmada_por; `transferencias_liq` con de_usuario_id, a_usuario_id, importe, estado, comprobante_id).
+  - Endpoints implementados y probados:
+    - `GET /campanas/{id}/liquidacion/simulacion`: simulación comparativa de Base Cobrada vs Base Vendida, detección de impedimentos (cobros en cuenta principal sin aprobar, números reservados activos).
+    - `POST /campanas/{id}/liquidacion`: confirmación de liquidación en base elegida (solo admin), pasa estado a `liquidada`, bloquea la campaña (`bloqueada=now()`), genera transferencias mínimas con algoritmo greedy y reparto determinista de centavos sobrantes. Rechaza ventas o modificaciones posteriores con 409 Conflict.
+    - `GET /campanas/{id}/liquidacion`: consulta de liquidación confirmada y lista de transferencias del grupo.
+    - `PATCH /campanas/{id}/liquidacion/transferencias/{id}`: actualización de estado de transferencia (`pagar` por deudor/admin, `confirmar` por acreedor/admin).
+  - Algoritmo de transferencias mínimas:
+    - Conservación estricta de saldo ($\sum B_i = 0$).
+    - Complejidad $O(K \log K)$ greedy con heaps de deudores y acreedores.
+    - Reparto determinista de centavos restantes: un centavo adicional a los primeros $Neto \pmod N$ integrantes ordenados por antigüedad (`alta asc, usuario_id asc`).
+  - Pruebas de API contra `miti.sole.ar`:
+    - `prueba_fase1.py`: 39/39 en verde.
+    - `prueba_fase2.py`: 55/55 en verde.
+    - `prueba_productos.py`: 43/43 en verde.
+    - `prueba_sync.py`: 26/26 en verde.
+    - `prueba_liquidacion.py`: 34/34 en verde (simulación de ambas bases, bloqueo por reserva activa, rechazo 409, confirmación 201, bloqueo de ventas post-liquidación, flujo de transferencias pendiente -> pagada -> confirmada).
+  - App móvil Flutter (v0.5.0+9):
+    - `PantallaLiquidacion`: modo simulación con alternancia Base Cobrada / Base Vendida, visualización de impedimentos y balances individuales; modo liquidada con sección destacada "Tus transferencias" para marcar transferencias pagadas y confirmar cobros recibidos.
+    - Integración en `PantallaCampana`: botón "Cerrar campaña" para el admin, banners y accesos dinámicos según estado (`activa`, `cerrada`, `liquidada`).
+    - `flutter analyze` 0 issues, `flutter test` 7/7 en verde (incluyendo `liquidacion_test.dart`).
+  - **Última APK publicada:** `https://miti.sole.ar/descargas/miti-0.5.0.apk` (hash SHA256 `952EC33D4AE9EEEDBF88ABC65CB89091A0BEB3F0167D90782C47263E39B11746`).
+
 ## 7. Pasos a seguir, en orden
 
-1. **El usuario prueba la APK 0.4.0 en el celular**:
-   - Abrir una campaña de rifa o productos con conexión para que descargue la copia local.
-   - Poner el celular en modo avión / sin señal y registrar una venta: comprobar que la guarda sin error, abre el billete provisional y muestra el aviso de pendiente de sincronizar.
-   - Quitar el modo avión y tocar el botón de sincronizar o hacer pull-to-refresh: comprobar que la venta sube al servidor y queda confirmada.
-   - Si se simula un conflicto vendiendo el mismo número desde dos teléfonos sin señal, el segundo en sincronizar recibe el conflicto y puede elegir otro número libre o descartar la venta desde la hoja de conflictos.
+1. **El usuario prueba la APK 0.5.0 en el celular**:
+   - Abrir una campaña en curso.
+   - Si la campaña está activa, cerrarla con el botón "Cerrar campaña para liquidar".
+   - Probar la pantalla de liquidación: comparar Base Cobrada y Base Vendida, verificar que calcule bien las partes y transferencias sugeridas.
+   - Si hay reservas activas o cobros pendientes, verificar que avise el impedimento y deshabilite la confirmación.
+   - Confirmar la liquidación y verificar la lista de transferencias generada.
+   - Marcar una transferencia como enviada/pagada y confirmar el cobro.
 2. **Siguientes funciones del backlog**:
-   - Liquidación final y cierre de campaña.
    - Notificaciones push con Firebase Cloud Messaging (FCM).
-   - Exportación de movimientos y balance a PDF y Excel.
+   - Exportación de movimientos y balance a PDF y Excel (§3.10).

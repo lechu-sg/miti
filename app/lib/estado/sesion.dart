@@ -79,3 +79,14 @@ final productosProvider =
   return ref.watch(apiProvider).productos(id);
 });
 
+final simulacionLiquidacionProvider =
+    FutureProvider.autoDispose.family<Map<String, dynamic>, String>((ref, id) async {
+  return ref.watch(apiProvider).simularLiquidacion(id);
+});
+
+final liquidacionProvider =
+    FutureProvider.autoDispose.family<Map<String, dynamic>, String>((ref, id) async {
+  return ref.watch(apiProvider).obtenerLiquidacion(id);
+});
+
+

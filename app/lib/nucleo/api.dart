@@ -267,6 +267,36 @@ class ApiMiti {
     return (await pedir('GET', '/campanas/$campanaId/sync/pull?$params'))
         as Map<String, dynamic>;
   }
+
+  // --- Fase 4: Cierre y liquidación (§3.9) ---
+
+  Future<Map<String, dynamic>> simularLiquidacion(String campanaId) async =>
+      (await pedir('GET', '/campanas/$campanaId/liquidacion/simulacion'))
+          as Map<String, dynamic>;
+
+  Future<Map<String, dynamic>> confirmarLiquidacion(
+          String campanaId, String base) async =>
+      (await pedir('POST', '/campanas/$campanaId/liquidacion',
+          cuerpo: {'base': base})) as Map<String, dynamic>;
+
+  Future<Map<String, dynamic>> obtenerLiquidacion(String campanaId) async =>
+      (await pedir('GET', '/campanas/$campanaId/liquidacion'))
+          as Map<String, dynamic>;
+
+  Future<Map<String, dynamic>> actualizarTransferencia(
+    String campanaId,
+    String transferenciaId, {
+    required String accion,
+    String? comprobanteId,
+  }) async =>
+      (await pedir(
+        'PATCH',
+        '/campanas/$campanaId/liquidacion/transferencias/$transferenciaId',
+        cuerpo: {
+          'accion': accion,
+          if (comprobanteId != null) 'comprobante_id': comprobanteId,
+        },
+      )) as Map<String, dynamic>;
 }
 
 /// Un error que vino de la API, ya traducido a algo que se le puede mostrar a la gente.
