@@ -61,7 +61,7 @@ async def registrar_sorteo(
     venta_id: uuid.UUID | None = None
     codigo_corto: str | None = None
 
-    regla_no_vendido = config.get("regla_no_vendido", "desierto")
+    regla_no_vendido = config.get("si_no_se_vendio", config.get("regla_no_vendido", "desierto"))
 
     async def _cargar_datos_ganador(venta_obj_id: uuid.UUID):
         nonlocal ganador_nombre, ganador_telefono, vendedor_id, vendedor_nombre, venta_id, codigo_corto
@@ -87,7 +87,7 @@ async def registrar_sorteo(
         await _cargar_datos_ganador(num_sorteado.venta_id)
     else:
         # Número no vendido: aplicar regla (§3.3)
-        if regla_no_vendido == "siguiente_vendido":
+        if regla_no_vendido in ("siguiente", "siguiente_vendido"):
             # Buscar el siguiente número vendido mayor o igual
             siguientes = (
                 await s.execute(

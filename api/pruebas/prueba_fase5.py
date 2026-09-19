@@ -49,43 +49,42 @@ def llamar(metodo, ruta, token=None, cuerpo=None):
             return e.code, texto
 
 
-def pedir_codigo(email):
-    st, _ = llamar("POST", "/acceso/codigo", cuerpo={"email": email})
-    if st != 200:
-        raise RuntimeError(f"error pidiendo codigo para {email}: {st}")
-    cmd = SSH + [
-        f"docker compose -f /srv/miti/app/infra/docker-compose.yml exec -T db "
-        f"psql -U postgres -d miti -t -A -c \"select codigo from codigos_ingreso "
-        f"where email_huella = digest('{email}', 'sha256') order by creado desc limit 1;\""
-    ]
-    res = subprocess.run(cmd, capture_output=True, text=True, check=True)
-    return res.stdout.strip()
+def codigo_de(email):
+    salida = subprocess.run(
+        SSH + ["cd /srv/miti/app/infra && sudo docker compose logs --since 5m api"],
+        capture_output=True, text=True, encoding="utf-8", errors="replace",
+    ).stdout
+    hallazgos = re.findall(rf"CÓDIGO DE ACCESO para {re.escape(email)}: (\d{{6}})", salida)
+    return hallazgos[-1] if hallazgos else None
 
 
-def login(email, nombre):
-    cod = pedir_codigo(email)
+def entrar(email, nombre):
+    llamar("POST", "/acceso/codigo", cuerpo={"email": email})
+    time.sleep(0.5)
+    codigo = codigo_de(email)
     st, res = llamar("POST", "/acceso/verificar", cuerpo={
-        "email": email,
-        "codigo": cod,
-        "nombre": nombre,
-        "nacimiento": "1995-04-10",
+        "email": email, "codigo": codigo, "nombre": nombre, "nacimiento": "1995-05-10"
     })
-    return res["token"], res["usuario"]["id"]
+    token = res["token"]
+    st_yo, yo = llamar("GET", "/yo", token=token)
+    return token, yo["id"]
 
 
 print("\n== 1. Preparar usuarios y campaña ==")
-t_ana, id_ana = login(U1, "Ana Admin")
-t_beto, id_beto = login(U2, "Beto Vendedor")
+t_ana, id_ana = entrar(U1, "Ana Admin")
+t_beto, id_beto = entrar(U2, "Beto Vendedor")
 
 st, c = llamar("POST", "/campanas", token=t_ana, cuerpo={
     "tipo": "rifa",
     "nombre": f"Rifa Sorteo {sello}",
-    "config": {
+    "moneda": "ARS",
+    "rifa": {
         "precio": 500000,  # $5.000 por número
         "desde": 1,
         "hasta": 100,
-        "premios": ["Moto 110cc 0km", "Televisor 50 pulgadas"],
-        "regla_no_vendido": "siguiente_vendido",
+        "asignacion": "bolsa",
+        "sorteo": "externo",
+        "si_no_se_vendio": "siguiente",
     },
 })
 probar("crear campaña", 201, st)
