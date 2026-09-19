@@ -27,6 +27,8 @@ class PantallaBillete extends StatefulWidget {
     this.entrega,
     this.fechaSorteo,
     this.autoCompartir = false,
+    this.onSolicitarAnulacion,
+    this.esAnulada = false,
   });
 
   final String campanaNombre;
@@ -41,6 +43,8 @@ class PantallaBillete extends StatefulWidget {
   final bool estaPagado;
   final String? fechaSorteo;
   final bool autoCompartir;
+  final Future<void> Function(String motivo)? onSolicitarAnulacion;
+  final bool esAnulada;
 
   @override
   State<PantallaBillete> createState() => _PantallaBilleteState();
@@ -496,6 +500,30 @@ class _PantallaBilleteState extends State<PantallaBillete> {
 
             const SizedBox(height: 24),
 
+            if (widget.esAnulada) ...[
+              Container(
+                margin: const EdgeInsets.only(bottom: 16),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                decoration: BoxDecoration(
+                  color: c.sello.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: c.sello),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.cancel_outlined, color: c.sello, size: 22),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'ESTA VENTA ESTÁ ANULADA\nLos números o artículos fueron liberados y los fondos revertidos.',
+                        style: t.pie.copyWith(color: c.selloTexto, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+
             // Botón principal: Enviar imagen por WhatsApp
             MitiBoton(
               texto: (widget.itemsProductos?.isNotEmpty ?? false)
@@ -519,6 +547,20 @@ class _PantallaBilleteState extends State<PantallaBillete> {
               },
             ),
 
+            if (widget.onSolicitarAnulacion != null && !widget.esAnulada) ...[
+              const SizedBox(height: 10),
+              MitiBoton(
+                texto: 'Solicitar anulación de venta',
+                icono: Icons.cancel_outlined,
+                secundario: true,
+                onTap: () async {
+                  final motivo = await _pedirMotivoAnulacion(context);
+                  if (motivo == null || !context.mounted) return;
+                  await widget.onSolicitarAnulacion!(motivo);
+                },
+              ),
+            ],
+
             const SizedBox(height: 10),
 
             MitiBoton(
@@ -528,6 +570,63 @@ class _PantallaBilleteState extends State<PantallaBillete> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Future<String?> _pedirMotivoAnulacion(BuildContext context) async {
+    final c = context.color;
+    final t = context.texto;
+    final ctrl = TextEditingController();
+    return showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: c.hoja,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+        title: Text('Solicitar anulación', style: t.seccion.copyWith(color: c.tinta)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Esta acción creará un contra-movimiento contable y liberará los números o artículos. Requiere la aprobación de otro integrante.',
+              style: t.pie.copyWith(color: c.tintaSuave),
+            ),
+            const SizedBox(height: 14),
+            TextField(
+              controller: ctrl,
+              autofocus: true,
+              style: t.cuerpo.copyWith(color: c.tinta),
+              decoration: InputDecoration(
+                labelText: 'Motivo de anulación (obligatorio)',
+                hintText: 'Ej: Comprador canceló / Error en números',
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(6)),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(null),
+            child: Text('Cancelar', style: t.etiqueta.copyWith(color: c.tintaSuave)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: c.sello,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+            ),
+            onPressed: () {
+              final m = ctrl.text.trim();
+              if (m.isEmpty) {
+                mostrarAviso(ctx, 'Tenés que ingresar un motivo', error: true);
+                return;
+              }
+              Navigator.of(ctx).pop(m);
+            },
+            child: const Text('Solicitar anulación'),
+          ),
+        ],
       ),
     );
   }

@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
@@ -318,6 +319,74 @@ class ApiMiti {
         if (cajaId != null) 'caja_id': cajaId,
         if (comprobanteId != null) 'comprobante_id': comprobanteId,
       })) as Map<String, dynamic>;
+
+  // --- Entregas entre cajas (§3.6) ---
+
+  Future<Map<String, dynamic>> crearEntrega(
+    String campanaId, {
+    required String cajaOrigenId,
+    required String cajaDestinoId,
+    required int importe,
+    String? nota,
+  }) async =>
+      (await pedir('POST', '/campanas/$campanaId/entregas', cuerpo: {
+        'caja_origen_id': cajaOrigenId,
+        'caja_destino_id': cajaDestinoId,
+        'importe': importe,
+        if (nota != null) 'nota': nota,
+      })) as Map<String, dynamic>;
+
+  // --- Anulación de ventas (§3.8) ---
+
+  Future<Map<String, dynamic>> anularVenta(
+    String campanaId,
+    String ventaId, {
+    required String motivo,
+  }) async =>
+      (await pedir('POST', '/campanas/$campanaId/ventas/$ventaId/anular', cuerpo: {
+        'motivo': motivo,
+      })) as Map<String, dynamic>;
+
+  // --- Sorteo (§3.3) ---
+
+  Future<Map<String, dynamic>?> sorteo(String campanaId) async {
+    final res = await pedir('GET', '/campanas/$campanaId/sorteo');
+    if (res == null) return null;
+    return res as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> registrarSorteo(
+    String campanaId, {
+    required int numeroSorteado,
+    required String premio,
+    String? reglaNoVendido,
+  }) async =>
+      (await pedir('POST', '/campanas/$campanaId/sorteo', cuerpo: {
+        'numero_sorteado': numeroSorteado,
+        'premio': premio,
+        if (reglaNoVendido != null) 'regla_no_vendido': reglaNoVendido,
+      })) as Map<String, dynamic>;
+
+  // --- Exportación a Excel y PDF (§3.10) ---
+
+  Future<Uint8List> descargarBytes(String ruta) async {
+    var respuesta = await _mandar('GET', ruta, conToken: true);
+    if (respuesta.statusCode == 401 && _refresco != null) {
+      if (await _renovar()) {
+        respuesta = await _mandar('GET', ruta, conToken: true);
+      }
+    }
+    if (respuesta.statusCode >= 400) {
+      throw ErrorApi.desde(respuesta);
+    }
+    return respuesta.bodyBytes;
+  }
+
+  Future<Uint8List> descargarExcel(String campanaId) =>
+      descargarBytes('/campanas/$campanaId/exportar/excel');
+
+  Future<Uint8List> descargarPdf(String campanaId) =>
+      descargarBytes('/campanas/$campanaId/exportar/pdf');
 }
 
 /// Un error que vino de la API, ya traducido a algo que se le puede mostrar a la gente.

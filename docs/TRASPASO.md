@@ -169,29 +169,31 @@ Antes de publicar una versión nueva, subí `version:` en `app/pubspec.yaml`. La
     - `flutter analyze` 0 issues, `flutter test` 7/7 en verde (incluyendo `liquidacion_test.dart`).
   - **Última APK publicada:** `https://miti.sole.ar/descargas/miti-0.5.0.apk` (hash SHA256 `952EC33D4AE9EEEDBF88ABC65CB89091A0BEB3F0167D90782C47263E39B11746`).
 
-- **Fase de Gastos de Campaña (§3.7 y §3.9): HECHA (v0.5.1).**
-  - Migración 0007 aplicada en el VPS (`gastos` con `id, campana_id, movimiento_id, descripcion, origen, caja_id, creado`).
-  - Reglas contables y de negocio (§3.7):
-    - Origen: `bolsillo` (reintegrable en liquidación $R_i$, no toca cajas) vs `caja` (egreso de caja en custodia, valida saldo confirmado disponible $\ge$ importe).
-    - Aprobación cruzada: Gasto de participante lo aprueba el creador/admin. Gasto del creador/admin lo aprueba cualquier otro integrante activo. Prohibida la auto-aprobación (403 Forbidden).
-    - Impacto en liquidación: Gastos pendientes impiden liquidar (409 Conflict). Gastos de bolsillo aprobados ($R_i$) se reintegran manteniendo la conservación $\sum B_i = 0$.
+- **Fase 5 (Entregas, Sorteo, Anulaciones y Exportación Excel/PDF): HECHA (v0.6.0).**
+  - Migración 0008 aplicada en el VPS (`sorteos` con `campana_id PK, numero_sorteado, numero_ganador, premio, estado_resultado, ganador_nombre, ganador_telefono, vendedor_id, vendedor_nombre, venta_id, codigo_corto, creado_por, creado`).
+  - Endpoints implementados y probados:
+    - **Entregas entre cajas (§3.6):** `POST /campanas/{id}/entregas` (valida fondos disponibles de caja origen, crea `Movimiento(tipo="entrega")` pendiente de confirmación por el titular de la caja destino). Prohibida auto-confirmación (403).
+    - **Anulación de ventas (§3.8):** `POST /campanas/{id}/ventas/{id}/anular` (motivo obligatorio, crea contra-movimiento de egreso de caja en estado pendiente). Aprobación cruzada por otro integrante activo; al confirmarse marca `venta.estado = 'anulada'` y libera los números vendidos a estado `'libre'`.
+    - **Sorteo y Ganador (§3.3, §7.8):** `POST /campanas/{id}/sorteo` y `GET /campanas/{id}/sorteo` (carga número oficial de quiniela/lotería; busca automáticamente el ganador o aplica regla de negocio si no se vendió: siguiente vendido o desierto; pasa estado a `sorteada`).
+    - **Exportación a Excel y PDF (§3.10, §7.5):** `GET /campanas/{id}/exportar/excel` (hojas Resumen, Cajas, Ventas, Gastos, Liquidación) y `GET /campanas/{id}/exportar/pdf` (informe formal estilizado con ReportLab, balance general, cuadro de cajas, desglose y firmas de conformidad de integrantes).
   - Pruebas de API contra `miti.sole.ar`:
-    - `prueba_gastos.py`: 33/33 en verde (bolsillo, caja con/sin fondos, auto-aprobación bloqueada, aprobación cruzada, impedimento en liquidación, cálculo de reintegros).
-    - Regresiones: `prueba_fase1.py` (39/39), `prueba_fase2.py` (55/55), `prueba_productos.py` (43/43), `prueba_liquidacion.py` (34/34).
-  - App móvil Flutter (v0.5.1+10):
-    - `HojaGasto` (`app/lib/pantallas/hoja_gasto.dart`): modal Talonario con descripción, importe en pesos, selector interactivo de origen (Mi bolsillo vs De mi caja con visualización de saldo en custodia).
-    - `PantallaCampana`: botón "Registrar gasto", desglose de gastos en ticket de recaudación, sección visual "GASTOS DE CAMPAÑA" con chips de estado (`PENDIENTE`, `APROBADO`, `RECHAZADO`), motivo de rechazo y origen.
-    - Flujo de evaluación unificado en aviso Talonario (`MitiAviso`), con diálogo para rechazar con motivo o aprobar.
-    - `flutter analyze` 0 issues, `flutter test` 8/8 en verde (incluyendo `gastos_test.dart`).
-  - **Última APK publicada:** `https://miti.sole.ar/descargas/miti-0.5.1.apk` (hash SHA256 `8ab22cf0db874497059e00a47e965db878241621084cc9417ba189db829cb6f1`).
+    - `prueba_fase5.py`: 34/34 en verde.
+    - Regresiones completas: `prueba_fase1.py` (39/39), `prueba_fase2.py` (55/55), `prueba_productos.py` (43/43), `prueba_liquidacion.py` (34/34), `prueba_gastos.py` (33/33). Total: 238 pruebas en verde.
+  - App móvil Flutter (v0.6.0+11):
+    - `HojaEntrega` (`app/lib/pantallas/hoja_entrega.dart`): modal para pasar dinero recaudado con selector de caja origen, destino, validación de saldo disponible en custodia y nota. Botón integrado en cabecera "DÓNDE ESTÁ LA PLATA".
+    - `PantallaGanador` (`app/lib/pantallas/ganador.dart`): formulario para carga de sorteo por el admin y tarjeta de felicitaciones con el número ganador, nombre, premio, ticket y botón para compartir por WhatsApp con imagen capturada.
+    - `PantallaBillete` y `_FilaVenta` actualizados para anulación: botón "Solicitar anulación de venta" con diálogo de motivo obligatorio, banner y chips de `ANULADA` con texto tachado.
+    - Exportación a Excel y PDF: botón en barra superior y en el cuerpo de campaña con diálogo para descargar y compartir planillas `.xlsx` o informes `.pdf` vía WhatsApp/apps externas.
+    - `flutter analyze` 0 issues, `flutter test` 10/10 en verde (incluyendo `fase5_test.dart`).
+  - **Última APK publicada:** `https://miti.sole.ar/descargas/miti-0.6.0.apk` (hash SHA256 generado en el servidor, también accesible directamente como `https://miti.sole.ar/descargas/miti.apk`).
 
 ## 7. Pasos a seguir, en orden
 
-1. **El usuario prueba la APK 0.5.1 en el celular**:
-   - Registrar un gasto de bolsillo ("Puse de mi plata").
-   - Registrar un gasto desde la caja en custodia ("De lo cobrado en mi caja").
-   - Evaluar los gastos con el otro integrante (aprobar o rechazar con motivo).
-   - Verificar que los gastos aprobados impacten en la liquidación y reintegros.
+1. **El usuario prueba la APK 0.6.0 en el celular**:
+   - Pasar dinero entre integrantes ("DÓNDE ESTÁ LA PLATA" -> "Pasar dinero").
+   - Evaluar la entrega con el destinatario (aprobar o rechazar).
+   - Solicitar anulación de una venta desde el billete/detalle de venta, y aprobar la anulación con otro integrante.
+   - En una rifa cerrada/activa, cargar el sorteo oficial y compartir la tarjeta de ganador por WhatsApp.
+   - Exportar el balance de campaña a Excel y a PDF.
 2. **Siguientes funciones del backlog**:
    - Notificaciones push con Firebase Cloud Messaging (FCM).
-   - Exportación de movimientos y balance a PDF y Excel (§3.10).

@@ -1,5 +1,9 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../estado/sesion.dart';
 import '../nucleo/api.dart';
@@ -9,8 +13,10 @@ import '../nucleo/tema.dart';
 import 'billete.dart';
 import 'catalogo_productos.dart';
 import 'compartir_disponibles.dart';
+import 'ganador.dart';
 import 'grilla_numeros.dart';
 import 'hoja_conflictos.dart';
+import 'hoja_entrega.dart';
 import 'hoja_gasto.dart';
 import 'liquidacion.dart';
 import 'venta_productos.dart';
@@ -139,6 +145,11 @@ class PantallaCampana extends ConsumerWidget {
                                 Icons.sync,
                                 color: sincro.tieneConflictos ? c.selloTexto : c.tinta,
                               ),
+                      ),
+                      IconButton(
+                        tooltip: 'Exportar balance (Excel / PDF)',
+                        icon: Icon(Icons.file_download_outlined, color: c.tinta),
+                        onPressed: () => _mostrarMenuExportar(context, ref, campana['nombre'] as String),
                       ),
                       if (esAdmin && campana['estado'] == 'borrador')
                         TextButton(
@@ -390,6 +401,29 @@ class PantallaCampana extends ConsumerWidget {
                         }
                       },
                     ),
+                    if (estaActiva || estaCerrada) ...[
+                      const SizedBox(height: 10),
+                      MitiBoton(
+                        texto: campana['estado'] == 'sorteada' ? 'Ver ganador del sorteo' : 'Sorteo y ganador',
+                        icono: Icons.emoji_events_outlined,
+                        secundario: true,
+                        onTap: () async {
+                          final res = await Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => PantallaGanador(
+                                campanaId: campanaId,
+                                campanaNombre: campana['nombre'] as String,
+                                esAdmin: esAdmin,
+                                premioDefault: config['premio'] as String?,
+                              ),
+                            ),
+                          );
+                          if (res == true) {
+                            ref.invalidate(campanaProvider(campanaId));
+                          }
+                        },
+                      ),
+                    ],
                     const SizedBox(height: 14),
                   ] else if (!esRifa) ...[
                     if (estaActiva) ...[
@@ -447,6 +481,13 @@ class PantallaCampana extends ConsumerWidget {
                         );
                       },
                     ),
+                    const SizedBox(height: 10),
+                    MitiBoton(
+                      texto: 'Exportar balance (Excel / PDF)',
+                      icono: Icons.file_download_outlined,
+                      secundario: true,
+                      onTap: () => _mostrarMenuExportar(context, ref, campana['nombre'] as String),
+                    ),
                     const SizedBox(height: 14),
                   ],
 
@@ -463,7 +504,36 @@ class PantallaCampana extends ConsumerWidget {
                   ],
 
                   const SizedBox(height: 12),
-                  Text('DÓNDE ESTÁ LA PLATA', style: t.sobrelinea.copyWith(color: c.tintaSuave)),
+                  Row(
+                    children: [
+                      Text('DÓNDE ESTÁ LA PLATA', style: t.sobrelinea.copyWith(color: c.tintaSuave)),
+                      const Spacer(),
+                      if (estaActiva || estaCerrada)
+                        TextButton.icon(
+                          onPressed: () async {
+                            final res = await showModalBottomSheet<bool>(
+                              context: context,
+                              isScrollControlled: true,
+                              backgroundColor: Colors.transparent,
+                              builder: (_) => HojaEntrega(
+                                campanaId: campanaId,
+                                campanaNombre: campana['nombre'] as String,
+                                cajas: cajas,
+                                cajasRecaudacion: rec?['cajas'],
+                              ),
+                            );
+                            if (res == true && context.mounted) {
+                              ref.invalidate(campanaProvider(campanaId));
+                              ref.invalidate(recaudacionProvider(campanaId));
+                              ref.invalidate(movimientosProvider(campanaId));
+                              mostrarAviso(context, 'Entrega registrada. El receptor debe confirmarla.');
+                            }
+                          },
+                          icon: Icon(Icons.swap_horiz_rounded, size: 18, color: c.selloTexto),
+                          label: Text('Pasar dinero', style: t.etiqueta.copyWith(color: c.selloTexto)),
+                        ),
+                    ],
+                  ),
                   const SizedBox(height: 8),
                   MitiTroquel(color: c.tinta, grosor: 1.5),
                   ..._cajasConSaldos(context, cajas, rec?['cajas']),
@@ -727,30 +797,57 @@ class PantallaCampana extends ConsumerWidget {
                                           style: t.importe.copyWith(color: c.tinta, fontSize: 22),
                                         ),
                                         const SizedBox(width: 8),
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                          decoration: BoxDecoration(
-                                            color: esGasto ? c.sello.withValues(alpha: 0.15) : c.mostaza.withValues(alpha: 0.2),
-                                            borderRadius: BorderRadius.circular(4),
-                                          ),
-                                          child: Text(
-                                            esGasto
-                                                ? (origenCaja ? 'GASTO DE CAJA' : 'GASTO BOLSILLO')
-                                                : 'COBRO EN CUENTA',
-                                            style: t.pie.copyWith(
-                                              color: esGasto ? c.selloTexto : c.tinta,
-                                              fontWeight: FontWeight.w700,
-                                              fontSize: 10,
-                                            ),
-                                          ),
+                                        Builder(
+                                          builder: (_) {
+                                            String etiqueta;
+                                            Color colorFondo;
+                                            Color colorTexto;
+                                            if (tipo == 'entrega') {
+                                              etiqueta = 'ENTREGA / PASE';
+                                              colorFondo = c.ok.withValues(alpha: 0.15);
+                                              colorTexto = c.ok;
+                                            } else if (tipo == 'anulacion') {
+                                              etiqueta = 'ANULACIÓN';
+                                              colorFondo = c.sello.withValues(alpha: 0.15);
+                                              colorTexto = c.selloTexto;
+                                            } else if (esGasto) {
+                                              etiqueta = origenCaja ? 'GASTO DE CAJA' : 'GASTO BOLSILLO';
+                                              colorFondo = c.sello.withValues(alpha: 0.15);
+                                              colorTexto = c.selloTexto;
+                                            } else {
+                                              etiqueta = 'COBRO EN CUENTA';
+                                              colorFondo = c.mostaza.withValues(alpha: 0.2);
+                                              colorTexto = c.tinta;
+                                            }
+
+                                            return Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                              decoration: BoxDecoration(
+                                                color: colorFondo,
+                                                borderRadius: BorderRadius.circular(4),
+                                              ),
+                                              child: Text(
+                                                etiqueta,
+                                                style: t.pie.copyWith(
+                                                  color: colorTexto,
+                                                  fontWeight: FontWeight.w700,
+                                                  fontSize: 10,
+                                                ),
+                                              ),
+                                            );
+                                          },
                                         ),
                                       ],
                                     ),
                                     const SizedBox(height: 2),
                                     Text(
-                                      esGasto
-                                          ? (motivo != null && motivo.isNotEmpty ? motivo : 'Gasto a verificar')
-                                          : 'Transferencia a cuenta principal a verificar',
+                                      tipo == 'entrega'
+                                          ? (motivo != null && motivo.isNotEmpty ? motivo : 'Entrega de dinero entre cajas')
+                                          : tipo == 'anulacion'
+                                              ? (motivo != null && motivo.isNotEmpty ? 'Anulación: $motivo' : 'Solicitud de anulación de venta')
+                                              : esGasto
+                                                  ? (motivo != null && motivo.isNotEmpty ? motivo : 'Gasto a verificar')
+                                                  : 'Transferencia a cuenta principal a verificar',
                                       style: t.cuerpo.copyWith(color: c.tinta, fontWeight: FontWeight.w500),
                                     ),
                                   ],
@@ -774,9 +871,12 @@ class PantallaCampana extends ConsumerWidget {
                                           mov['id'] as String,
                                           motivoRechazo,
                                         );
+                                    ref.invalidate(campanaProvider(campanaId));
                                     ref.invalidate(recaudacionProvider(campanaId));
                                     ref.invalidate(movimientosProvider(campanaId));
                                     ref.invalidate(gastosProvider(campanaId));
+                                    ref.invalidate(ventasProvider(campanaId));
+                                    ref.invalidate(numerosProvider(campanaId));
                                     if (context.mounted) mostrarAviso(context, 'Movimiento rechazado');
                                   } on ErrorApi catch (e) {
                                     if (context.mounted) mostrarAviso(context, e.mensaje, error: true);
@@ -793,9 +893,12 @@ class PantallaCampana extends ConsumerWidget {
                                           campanaId,
                                           mov['id'] as String,
                                         );
+                                    ref.invalidate(campanaProvider(campanaId));
                                     ref.invalidate(recaudacionProvider(campanaId));
                                     ref.invalidate(movimientosProvider(campanaId));
                                     ref.invalidate(gastosProvider(campanaId));
+                                    ref.invalidate(ventasProvider(campanaId));
+                                    ref.invalidate(numerosProvider(campanaId));
                                     if (context.mounted) mostrarAviso(context, 'Movimiento aprobado');
                                   } on ErrorApi catch (e) {
                                     if (context.mounted) mostrarAviso(context, e.mensaje, error: true);
@@ -946,6 +1049,96 @@ class PantallaCampana extends ConsumerWidget {
       ref.invalidate(campanaProvider(campanaId));
     }
   }
+
+  Future<void> _exportar(BuildContext context, WidgetRef ref, String campanaNombre, String tipo) async {
+    mostrarAviso(context, 'Preparando archivo $tipo...');
+    try {
+      final api = ref.read(apiProvider);
+      final bytes = tipo == 'Excel'
+          ? await api.descargarExcel(campanaId)
+          : await api.descargarPdf(campanaId);
+
+      final extension = tipo == 'Excel' ? 'xlsx' : 'pdf';
+      final mime = tipo == 'Excel'
+          ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+          : 'application/pdf';
+
+      final tempDir = await getTemporaryDirectory();
+      final slug = campanaNombre.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]+'), '_');
+      final archivo = File('${tempDir.path}/miti_${slug}_balance.$extension');
+      await archivo.writeAsBytes(bytes);
+
+      await SharePlus.instance.share(
+        ShareParams(
+          files: [XFile(archivo.path, mimeType: mime)],
+          text: 'Balance de campaña: $campanaNombre ($tipo)',
+        ),
+      );
+    } on ErrorApi catch (e) {
+      if (context.mounted) mostrarAviso(context, e.mensaje, error: true);
+    } catch (e) {
+      if (context.mounted) mostrarAviso(context, 'No se pudo generar el archivo para exportar', error: true);
+    }
+  }
+
+  void _mostrarMenuExportar(BuildContext context, WidgetRef ref, String campanaNombre) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: context.color.hoja,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text('EXPORTAR BALANCE DE CAMPAÑA', style: ctx.texto.seccion),
+              const SizedBox(height: 6),
+              Text(
+                'Descargá o compartí la rendición completa con todas las cajas, cobros, gastos y liquidación.',
+                style: ctx.texto.pie.copyWith(color: ctx.color.tintaSuave),
+              ),
+              const SizedBox(height: 20),
+              ListTile(
+                leading: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF1D6F42).withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(Icons.table_chart_outlined, color: Color(0xFF1D6F42)),
+                ),
+                title: Text('Planilla Excel (.xlsx)', style: ctx.texto.cuerpo.copyWith(fontWeight: FontWeight.w700)),
+                subtitle: Text('Balance, Cajas, Ventas, Gastos y Reparto detallados', style: ctx.texto.pie),
+                onTap: () {
+                  Navigator.of(ctx).pop();
+                  _exportar(context, ref, campanaNombre, 'Excel');
+                },
+              ),
+              const Divider(),
+              ListTile(
+                leading: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: ctx.color.sello.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(Icons.picture_as_pdf_outlined, color: ctx.color.sello),
+                ),
+                title: Text('Documento PDF (.pdf)', style: ctx.texto.cuerpo.copyWith(fontWeight: FontWeight.w700)),
+                subtitle: Text('Informe formal listo para imprimir con firmas de conformidad', style: ctx.texto.pie),
+                onTap: () {
+                  Navigator.of(ctx).pop();
+                  _exportar(context, ref, campanaNombre, 'PDF');
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class _FilaVenta extends ConsumerWidget {
@@ -979,11 +1172,16 @@ class _FilaVenta extends ConsumerWidget {
     final entrega = venta['entrega'] as String? ?? 'pedido';
     final esEntregado = entrega == 'entregado';
 
+    final estado = venta['estado'] as String? ?? 'confirmada';
+    final esAnulada = estado == 'anulada';
+
     final numsStr = numeros.map((n) => n.toString().padLeft(2, '0')).join(', ');
     final resumenProd = itemsProductos.map((p) => '${p['cantidad']}x ${p['nombre']}').join(', ');
-    final detalleTexto = esRifa
-        ? 'Nros: $numsStr · Por $vendedorNombre'
-        : '${resumenProd.isNotEmpty ? resumenProd : 'Productos'} · Por $vendedorNombre';
+    final detalleTexto = esAnulada
+        ? 'VENTA ANULADA · Por $vendedorNombre'
+        : (esRifa
+            ? 'Nros: $numsStr · Por $vendedorNombre'
+            : '${resumenProd.isNotEmpty ? resumenProd : 'Productos'} · Por $vendedorNombre');
 
     return InkWell(
       onTap: () {
@@ -1000,6 +1198,27 @@ class _FilaVenta extends ConsumerWidget {
               vendedorNombre: vendedorNombre,
               codigoCorto: codigoCorto,
               estaPagado: estaPagado,
+              esAnulada: esAnulada,
+              onSolicitarAnulacion: (motivo) async {
+                try {
+                  await ref.read(apiProvider).anularVenta(
+                        campanaId,
+                        venta['id'] as String,
+                        motivo: motivo,
+                      );
+                  ref.invalidate(campanaProvider(campanaId));
+                  ref.invalidate(ventasProvider(campanaId));
+                  ref.invalidate(recaudacionProvider(campanaId));
+                  ref.invalidate(movimientosProvider(campanaId));
+                  if (esRifa) ref.invalidate(numerosProvider(campanaId));
+                  if (context.mounted) {
+                    Navigator.of(context).pop();
+                    mostrarAviso(context, 'Solicitud de anulación enviada. Requiere aprobación.');
+                  }
+                } on ErrorApi catch (e) {
+                  if (context.mounted) mostrarAviso(context, e.mensaje, error: true);
+                }
+              },
             ),
           ),
         );
@@ -1018,84 +1237,106 @@ class _FilaVenta extends ConsumerWidget {
                       Flexible(
                         child: Text(
                           compradorNombre,
-                          style: t.cuerpo.copyWith(fontWeight: FontWeight.w700, color: c.tinta),
+                          style: t.cuerpo.copyWith(
+                            fontWeight: FontWeight.w700,
+                            color: esAnulada ? c.tintaSuave : c.tinta,
+                            decoration: esAnulada ? TextDecoration.lineThrough : null,
+                          ),
                         ),
                       ),
                       const SizedBox(width: 8),
-                      // Chip de Pago
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: estaPagado ? c.ok.withValues(alpha: 0.15) : c.sello.withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Text(
-                          estaPagado ? 'PAGADO' : 'A PAGAR',
-                          style: t.pie.copyWith(
-                            color: estaPagado ? c.ok : c.selloTexto,
-                            fontWeight: FontWeight.w700,
-                            fontSize: 10,
+                      if (esAnulada)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: c.sello.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            'ANULADA',
+                            style: t.pie.copyWith(
+                              color: c.selloTexto,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 10,
+                            ),
+                          ),
+                        )
+                      else ...[
+                        // Chip de Pago
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: estaPagado ? c.ok.withValues(alpha: 0.15) : c.sello.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            estaPagado ? 'PAGADO' : 'A PAGAR',
+                            style: t.pie.copyWith(
+                              color: estaPagado ? c.ok : c.selloTexto,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 10,
+                            ),
                           ),
                         ),
-                      ),
-                      // Chip de Entrega (en productos)
-                      if (!esRifa) ...[
-                        const SizedBox(width: 6),
-                        InkWell(
-                          onTap: () async {
-                            try {
-                              final api = ref.read(apiProvider);
-                              final nuevo = esEntregado ? 'pedido' : 'entregado';
-                              await api.actualizarEntrega(campanaId, venta['id'] as String, nuevo);
-                              ref.invalidate(ventasProvider(campanaId));
-                              if (context.mounted) {
-                                mostrarAviso(
-                                  context,
-                                  nuevo == 'entregado'
-                                      ? 'Pedido marcado como entregado'
-                                      : 'Pedido marcado como pendiente',
-                                );
+                        // Chip de Entrega (en productos)
+                        if (!esRifa) ...[
+                          const SizedBox(width: 6),
+                          InkWell(
+                            onTap: () async {
+                              try {
+                                final api = ref.read(apiProvider);
+                                final nuevo = esEntregado ? 'pedido' : 'entregado';
+                                await api.actualizarEntrega(campanaId, venta['id'] as String, nuevo);
+                                ref.invalidate(ventasProvider(campanaId));
+                                if (context.mounted) {
+                                  mostrarAviso(
+                                    context,
+                                    nuevo == 'entregado'
+                                        ? 'Pedido marcado como entregado'
+                                        : 'Pedido marcado como pendiente',
+                                  );
+                                }
+                              } catch (e) {
+                                if (context.mounted) {
+                                  mostrarAviso(context, 'No se pudo actualizar la entrega', error: true);
+                                }
                               }
-                            } catch (e) {
-                              if (context.mounted) {
-                                mostrarAviso(context, 'No se pudo actualizar la entrega', error: true);
-                              }
-                            }
-                          },
-                          borderRadius: BorderRadius.circular(4),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: esEntregado
-                                  ? c.ok.withValues(alpha: 0.15)
-                                  : c.mostaza.withValues(alpha: 0.25),
-                              borderRadius: BorderRadius.circular(4),
-                              border: Border.all(
-                                color: esEntregado ? c.ok : c.tinta.withValues(alpha: 0.3),
-                                width: 1,
+                            },
+                            borderRadius: BorderRadius.circular(4),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: esEntregado
+                                    ? c.ok.withValues(alpha: 0.15)
+                                    : c.mostaza.withValues(alpha: 0.25),
+                                borderRadius: BorderRadius.circular(4),
+                                border: Border.all(
+                                  color: esEntregado ? c.ok : c.tinta.withValues(alpha: 0.3),
+                                  width: 1,
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    esEntregado ? Icons.check : Icons.inventory_2_outlined,
+                                    size: 10,
+                                    color: esEntregado ? c.ok : c.tinta,
+                                  ),
+                                  const SizedBox(width: 3),
+                                  Text(
+                                    esEntregado ? 'ENTREGADO' : 'PEDIDO',
+                                    style: t.pie.copyWith(
+                                      color: esEntregado ? c.ok : c.tinta,
+                                      fontWeight: FontWeight.w800,
+                                      fontSize: 9,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  esEntregado ? Icons.check : Icons.inventory_2_outlined,
-                                  size: 10,
-                                  color: esEntregado ? c.ok : c.tinta,
-                                ),
-                                const SizedBox(width: 3),
-                                Text(
-                                  esEntregado ? 'ENTREGADO' : 'PEDIDO',
-                                  style: t.pie.copyWith(
-                                    color: esEntregado ? c.ok : c.tinta,
-                                    fontWeight: FontWeight.w800,
-                                    fontSize: 9,
-                                  ),
-                                ),
-                              ],
-                            ),
                           ),
-                        ),
+                        ],
                       ],
                     ],
                   ),
@@ -1107,7 +1348,13 @@ class _FilaVenta extends ConsumerWidget {
             Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                Text(plata(importe), style: t.cifra.copyWith(color: c.tinta)),
+                Text(
+                  plata(importe),
+                  style: t.cifra.copyWith(
+                    color: esAnulada ? c.tintaSuave : c.tinta,
+                    decoration: esAnulada ? TextDecoration.lineThrough : null,
+                  ),
+                ),
                 Text('#$codigoCorto', style: t.pie.copyWith(color: c.tintaSuave, fontSize: 11)),
               ],
             ),
