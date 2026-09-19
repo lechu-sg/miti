@@ -177,23 +177,37 @@ Antes de publicar una versión nueva, subí `version:` en `app/pubspec.yaml`. La
     - **Sorteo y Ganador (§3.3, §7.8):** `POST /campanas/{id}/sorteo` y `GET /campanas/{id}/sorteo` (carga número oficial de quiniela/lotería; busca automáticamente el ganador o aplica regla de negocio si no se vendió: siguiente vendido o desierto; pasa estado a `sorteada`).
     - **Exportación a Excel y PDF (§3.10, §7.5):** `GET /campanas/{id}/exportar/excel` (hojas Resumen, Cajas, Ventas, Gastos, Liquidación) y `GET /campanas/{id}/exportar/pdf` (informe formal estilizado con ReportLab, balance general, cuadro de cajas, desglose y firmas de conformidad de integrantes).
   - Pruebas de API contra `miti.sole.ar`:
-    - `prueba_fase5.py`: 34/34 en verde.
-    - Regresiones completas: `prueba_fase1.py` (39/39), `prueba_fase2.py` (55/55), `prueba_productos.py` (43/43), `prueba_liquidacion.py` (34/34), `prueba_gastos.py` (33/33). Total: 238 pruebas en verde.
-  - App móvil Flutter (v0.6.0+11):
-    - `HojaEntrega` (`app/lib/pantallas/hoja_entrega.dart`): modal para pasar dinero recaudado con selector de caja origen, destino, validación de saldo disponible en custodia y nota. Botón integrado en cabecera "DÓNDE ESTÁ LA PLATA".
-    - `PantallaGanador` (`app/lib/pantallas/ganador.dart`): formulario para carga de sorteo por el admin y tarjeta de felicitaciones con el número ganador, nombre, premio, ticket y botón para compartir por WhatsApp con imagen capturada.
-    - `PantallaBillete` y `_FilaVenta` actualizados para anulación: botón "Solicitar anulación de venta" con diálogo de motivo obligatorio, banner y chips de `ANULADA` con texto tachado.
-    - Exportación a Excel y PDF: botón en barra superior y en el cuerpo de campaña con diálogo para descargar y compartir planillas `.xlsx` o informes `.pdf` vía WhatsApp/apps externas.
-    - `flutter analyze` 0 issues, `flutter test` 10/10 en verde (incluyendo `fase5_test.dart`).
-  - **Última APK publicada:** `https://miti.sole.ar/descargas/miti-0.6.0.apk` (hash SHA256 generado en el servidor, también accesible directamente como `https://miti.sole.ar/descargas/miti.apk`).
+- **Sorteos Múltiples y Edición de Premios (§3.3): HECHO (v0.6.1).**
+  - Migración 0009 aplicada en el VPS (`api/migraciones/versions/0009_sorteos_multiples.py`):
+    - Agrega columna `orden` (integer, default 1, not null).
+    - Modifica la clave primaria de `sorteos` a una clave compuesta `(campana_id, orden)`.
+  - Endpoints implementados y probados:
+    - `PUT /campanas/{id}/premios`: modificación en cualquier momento (mientras la campaña no esté sorteada, liquidada ni archivada) de la cantidad y lista ordenada de premios. Solo admin (403 a otros).
+    - `POST /campanas/{id}/sorteo`: soporte de múltiples premios en orden secuencial con `items: list[PremioSorteoEntrada]`. Determinación de ganadores con exclusión secuencial (un número ya ganador no vuelve a ganar en premios posteriores, pasando al siguiente vendido disponible o desierto según la regla configurada).
+    - `GET /campanas/{id}/sorteo`: consulta de todos los premios y sus ganadores ordenados por `orden asc`.
+  - Pruebas de API contra `miti.sole.ar`:
+    - `prueba_fase5.py`: 47/47 en verde (edición de premios por admin, rechazo 403 a participantes, sorteo con 2 premios, adjudicación directa y circular wrap-around con exclusión de boletos ya premiados).
+  - App móvil Flutter (v0.6.1+12):
+    - `PantallaNuevaCampana`: lista dinámica de premios en campañas de números (1° Premio por defecto, botón "+ Agregar otro premio", botón de eliminar).
+    - `HojaPremios` (`app/lib/pantallas/hoja_premios.dart`): modal para ver, agregar, renombrar o quitar premios durante la campaña activa/borrador/cerrada.
+    - `PantallaCampana`: botón "Premios de la rifa (N)" para el admin con acceso directo a la edición.
+    - `PantallaGanador` (`app/lib/pantallas/ganador.dart`):
+      - Formulario de sorteo: carga de números oficiales para cada uno de los premios configurados con selector de regla si no fue vendido.
+      - Tarjeta de ganadores multi-premio con diseño Talonario: lista de todos los premios, badges de número ganador, nombre, teléfono, vendedor y código de ticket.
+      - Compartir en redes/WhatsApp: generación de tarjeta PNG multi-premio y texto detallado por cada premio.
+    - `flutter analyze`: 0 issues.
+    - `flutter test`: 10/10 en verde.
+  - **Última APK publicada:** `https://miti.sole.ar/descargas/miti-0.6.1.apk` (también disponible en `https://miti.sole.ar/descargas/miti.apk`).
 
 ## 7. Pasos a seguir, en orden
 
-1. **El usuario prueba la APK 0.6.0 en el celular**:
-   - Pasar dinero entre integrantes ("DÓNDE ESTÁ LA PLATA" -> "Pasar dinero").
-   - Evaluar la entrega con el destinatario (aprobar o rechazar).
-   - Solicitar anulación de una venta desde el billete/detalle de venta, y aprobar la anulación con otro integrante.
-   - En una rifa cerrada/activa, cargar el sorteo oficial y compartir la tarjeta de ganador por WhatsApp.
-   - Exportar el balance de campaña a Excel y a PDF.
+1. **El usuario prueba la APK 0.6.1 en el celular**:
+   - Crear una rifa nueva definiendo 2 o más premios (ej: 1° Premio: Moto, 2° Premio: TV).
+   - Editar los premios desde la campaña activa (botón "Premios de la rifa").
+   - Vender algunos números.
+   - Ir a "Sorteo y ganadores", ingresar los números de la lotería para cada premio y registrar.
+   - Verificar que no se repita el ganador si hay otros números vendidos disponibles.
+   - Compartir la tarjeta por WhatsApp con los resultados de todos los premios.
 2. **Siguientes funciones del backlog**:
    - Notificaciones push con Firebase Cloud Messaging (FCM).
+
