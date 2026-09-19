@@ -377,6 +377,8 @@ async def confirmar_liquidacion(
         )
     )
 
+    liq_creada = liq.creada or datetime.now(UTC)
+
     await s.commit()
 
     return LiquidacionSalida(
@@ -389,7 +391,7 @@ async def confirmar_liquidacion(
         detalle={"participantes": opcion["participantes"]},
         confirmada_por=ctx.usuario.id,
         confirmada_por_nombre=ctx.usuario.nombre,
-        creada=liq.creada,
+        creada=liq_creada,
         transferencias=transfs_salida,
     )
 
@@ -522,19 +524,26 @@ async def actualizar_transferencia(
         )
     )
 
+    t_id = t.id
+    de_usuario_id = t.de_usuario_id
+    a_usuario_id = t.a_usuario_id
+    importe = t.importe
+    estado = t.estado
+    comprobante_id = t.comprobante_id
     de_nombre = t.de_usuario.nombre
     a_nombre = t.a_usuario.nombre
+    actualizada = datetime.now(UTC)
 
     await s.commit()
 
     return TransferenciaLiquidacionSalida(
-        id=t.id,
-        de_usuario_id=t.de_usuario_id,
+        id=t_id,
+        de_usuario_id=de_usuario_id,
         de_nombre=de_nombre,
-        a_usuario_id=t.a_usuario_id,
+        a_usuario_id=a_usuario_id,
         a_nombre=a_nombre,
-        importe=t.importe,
-        estado=t.estado,
-        comprobante_id=t.comprobante_id,
-        actualizada=t.actualizada,
+        importe=importe,
+        estado=estado,
+        comprobante_id=comprobante_id,
+        actualizada=actualizada,
     )
