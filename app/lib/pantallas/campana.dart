@@ -11,6 +11,7 @@ import 'catalogo_productos.dart';
 import 'compartir_disponibles.dart';
 import 'grilla_numeros.dart';
 import 'hoja_conflictos.dart';
+import 'hoja_gasto.dart';
 import 'liquidacion.dart';
 import 'venta_productos.dart';
 import '../nucleo/sincronizador.dart';
@@ -29,6 +30,7 @@ class PantallaCampana extends ConsumerWidget {
     final recAsync = ref.watch(recaudacionProvider(campanaId));
     final ventasAsync = ref.watch(ventasProvider(campanaId));
     final movsAsync = ref.watch(movimientosProvider(campanaId));
+    final gastosAsync = ref.watch(gastosProvider(campanaId));
     final sesionUsuario = ref.watch(sesionProvider).valueOrNull;
     final sincro = ref.watch(sincroProvider(campanaId));
 
@@ -62,17 +64,27 @@ class PantallaCampana extends ConsumerWidget {
             final cobrado = rec?['cobrado'] as int? ?? 0;
             final vendido = rec?['vendido'] as int? ?? 0;
             final faltaCobrar = rec?['falta_cobrar'] as int? ?? 0;
+            final totalGastos = rec?['gastos'] as int? ?? 0;
             final vendidosCount = rec?['numeros_vendidos'] as int? ?? 0;
             final totalesCount = rec?['numeros_totales'] as int? ?? 0;
 
             final progreso = (meta != null && meta > 0) ? (cobrado / meta) : null;
 
-            // Movimientos pendientes que requieren aprobación del usuario actual
+            // Movimientos pendientes que requieren aprobación del usuario actual (§3.7)
+            final miId = sesionUsuario?['id'];
             final movs = movsAsync.valueOrNull ?? [];
             final pendientesDeAprobar = movs.where((m) {
-              final req = m['requiere_aprobacion_de'] as String?;
               final est = m['estado'] as String?;
-              return est == 'pendiente' && (req == sesionUsuario?['id'] || esAdmin);
+              if (est != 'pendiente') return false;
+              final creador = m['creado_por'] as String?;
+              if (creador == miId) return false; // Jamás auto-aprobar
+
+              final req = m['requiere_aprobacion_de'] as String?;
+              if (req != null) {
+                return req == miId;
+              }
+              // Si requiere_aprobacion_de es null (gasto del admin), cualquier integrante activo puede aprobar
+              return true;
             }).toList();
 
             final ventas = (ventasAsync.valueOrNull ?? []).cast<Map<String, dynamic>>();
@@ -84,6 +96,7 @@ class PantallaCampana extends ConsumerWidget {
                 ref.invalidate(recaudacionProvider(campanaId));
                 ref.invalidate(ventasProvider(campanaId));
                 ref.invalidate(movimientosProvider(campanaId));
+                ref.invalidate(gastosProvider(campanaId));
                 if (esRifa) ref.invalidate(numerosProvider(campanaId));
                 await ref.read(sincroProvider(campanaId).notifier).sincronizar();
               },
@@ -237,7 +250,9 @@ class PantallaCampana extends ConsumerWidget {
                   MitiTicket(
                     sobrelinea: 'Cobrado',
                     importe: plata(cobrado),
-                    detalle: 'Vendido ${plata(vendido)} · falta cobrar ${plata(faltaCobrar)}',
+                    detalle: totalGastos > 0
+                        ? 'Vendido ${plata(vendido)} · Gastos ${plata(totalGastos)} · Falta cobrar ${plata(faltaCobrar)}'
+                        : 'Vendido ${plata(vendido)} · Falta cobrar ${plata(faltaCobrar)}',
                     progreso: progreso,
                     pie: meta == null ? 'Sin meta definida' : 'Meta ${plata(meta)}',
                     talonArriba: esRifa ? '$vendidosCount' : '${activos.length}',
@@ -413,13 +428,35 @@ class PantallaCampana extends ConsumerWidget {
                     const SizedBox(height: 14),
                   ],
 
-                  // Aviso si hay cobros en cuenta principal esperando confirmación
+                  if (estaActiva || estaCerrada) ...[
+                    MitiBoton(
+                      texto: 'Registrar gasto',
+                      icono: Icons.receipt_long_outlined,
+                      secundario: true,
+                      onTap: () {
+                        showModalBottomSheet<void>(
+                          context: context,
+                          isScrollControlled: true,
+                          backgroundColor: Colors.transparent,
+                          builder: (_) => HojaGasto(
+                            campanaId: campanaId,
+                            campanaNombre: campana['nombre'] as String,
+                            cajas: cajas,
+                            cajasRecaudacion: rec?['cajas'],
+                          ),
+                        );
+                      },
+                    ),
+                    const SizedBox(height: 14),
+                  ],
+
+                  // Aviso si hay cobros o gastos esperando aprobación del usuario (§3.7)
                   if (pendientesDeAprobar.isNotEmpty) ...[
                     MitiAviso(
                       cantidad: pendientesDeAprobar.length,
                       texto: pendientesDeAprobar.length == 1
-                          ? 'cobro pendiente de tu confirmación'
-                          : 'cobros pendientes de tu confirmación',
+                          ? 'movimiento pendiente de tu aprobación'
+                          : 'movimientos pendientes de tu aprobación',
                       onTap: () => _mostrarAprobaciones(context, ref, pendientesDeAprobar),
                     ),
                     const SizedBox(height: 14),
@@ -480,6 +517,35 @@ class PantallaCampana extends ConsumerWidget {
                         esRifa: esRifa,
                       ),
                   ],
+
+                  // Gastos de campaña (§3.7)
+                  Builder(
+                    builder: (ctx) {
+                      final gastos = (gastosAsync.valueOrNull ?? []).cast<Map<String, dynamic>>();
+                      if (gastos.isEmpty) return const SizedBox.shrink();
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const SizedBox(height: 26),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text('GASTOS DE CAMPAÑA', style: t.sobrelinea.copyWith(color: c.tintaSuave)),
+                              Text('${gastos.length}', style: t.etiqueta.copyWith(color: c.tintaSuave)),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          MitiTroquel(color: c.tinta, grosor: 1.5),
+                          for (final g in gastos)
+                            _FilaGasto(
+                              gasto: g,
+                              campanaId: campanaId,
+                              miId: miId,
+                            ),
+                        ],
+                      );
+                    },
+                  ),
 
                   const SizedBox(height: 26),
                   Row(
@@ -625,53 +691,125 @@ class PantallaCampana extends ConsumerWidget {
         final t = context.texto;
 
         return MitiHoja(
-          titulo: 'COBROS A CONFIRMAR',
-          subtitulo: 'CUENTA PRINCIPAL',
+          titulo: 'MOVIMIENTOS A EVALUAR',
+          subtitulo: 'PENDIENTES DE TU APROBACIÓN',
           child: Column(
             children: [
               for (final mov in pendientes) ...[
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: c.papelHundido,
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              plata(mov['importe'] as int),
-                              style: t.importe.copyWith(color: c.tinta, fontSize: 22),
-                            ),
-                            Text(
-                              'Transferencia a verificar',
-                              style: t.pie.copyWith(color: c.tintaSuave),
-                            ),
-                          ],
-                        ),
+                Builder(
+                  builder: (ctx) {
+                    final tipo = mov['tipo'] as String? ?? '';
+                    final esGasto = tipo == 'gasto' || tipo.startsWith('gasto_');
+                    final motivo = mov['motivo'] as String?;
+                    final importe = mov['importe'] as int? ?? 0;
+                    final origenCaja = mov['caja_origen'] != null;
+
+                    return Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: c.papelHundido,
+                        borderRadius: BorderRadius.circular(6),
                       ),
-                      TextButton(
-                        onPressed: () async {
-                          Navigator.of(context).pop();
-                          try {
-                            await ref.read(apiProvider).confirmarMovimiento(
-                                  campanaId,
-                                  mov['id'] as String,
-                                );
-                            ref.invalidate(recaudacionProvider(campanaId));
-                            ref.invalidate(movimientosProvider(campanaId));
-                            if (context.mounted) mostrarAviso(context, 'Cobro confirmado');
-                          } on ErrorApi catch (e) {
-                            if (context.mounted) mostrarAviso(context, e.mensaje, error: true);
-                          }
-                        },
-                        child: Text('Confirmar', style: t.etiqueta.copyWith(color: c.ok)),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Text(
+                                          plata(importe),
+                                          style: t.importe.copyWith(color: c.tinta, fontSize: 22),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                          decoration: BoxDecoration(
+                                            color: esGasto ? c.sello.withValues(alpha: 0.15) : c.mostaza.withValues(alpha: 0.2),
+                                            borderRadius: BorderRadius.circular(4),
+                                          ),
+                                          child: Text(
+                                            esGasto
+                                                ? (origenCaja ? 'GASTO DE CAJA' : 'GASTO BOLSILLO')
+                                                : 'COBRO EN CUENTA',
+                                            style: t.pie.copyWith(
+                                              color: esGasto ? c.selloTexto : c.tinta,
+                                              fontWeight: FontWeight.w700,
+                                              fontSize: 10,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      esGasto
+                                          ? (motivo != null && motivo.isNotEmpty ? motivo : 'Gasto a verificar')
+                                          : 'Transferencia a cuenta principal a verificar',
+                                      style: t.cuerpo.copyWith(color: c.tinta, fontWeight: FontWeight.w500),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: [
+                              TextButton(
+                                onPressed: () async {
+                                  final motivoRechazo = await _pedirMotivoRechazo(context);
+                                  if (motivoRechazo == null) return;
+                                  if (!context.mounted) return;
+                                  Navigator.of(context).pop();
+                                  try {
+                                    await ref.read(apiProvider).rechazarMovimiento(
+                                          campanaId,
+                                          mov['id'] as String,
+                                          motivoRechazo,
+                                        );
+                                    ref.invalidate(recaudacionProvider(campanaId));
+                                    ref.invalidate(movimientosProvider(campanaId));
+                                    ref.invalidate(gastosProvider(campanaId));
+                                    if (context.mounted) mostrarAviso(context, 'Movimiento rechazado');
+                                  } on ErrorApi catch (e) {
+                                    if (context.mounted) mostrarAviso(context, e.mensaje, error: true);
+                                  }
+                                },
+                                child: Text('Rechazar', style: t.etiqueta.copyWith(color: c.selloTexto)),
+                              ),
+                              const SizedBox(width: 8),
+                              TextButton(
+                                onPressed: () async {
+                                  Navigator.of(context).pop();
+                                  try {
+                                    await ref.read(apiProvider).confirmarMovimiento(
+                                          campanaId,
+                                          mov['id'] as String,
+                                        );
+                                    ref.invalidate(recaudacionProvider(campanaId));
+                                    ref.invalidate(movimientosProvider(campanaId));
+                                    ref.invalidate(gastosProvider(campanaId));
+                                    if (context.mounted) mostrarAviso(context, 'Movimiento aprobado');
+                                  } on ErrorApi catch (e) {
+                                    if (context.mounted) mostrarAviso(context, e.mensaje, error: true);
+                                  }
+                                },
+                                child: Text('Aprobar',
+                                    style: t.etiqueta.copyWith(color: c.ok, fontWeight: FontWeight.bold)),
+                              ),
+                            ],
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
+                    );
+                  },
                 ),
                 const SizedBox(height: 8),
               ],
@@ -679,6 +817,51 @@ class PantallaCampana extends ConsumerWidget {
           ),
         );
       },
+    );
+  }
+
+  Future<String?> _pedirMotivoRechazo(BuildContext context) async {
+    final c = context.color;
+    final t = context.texto;
+    final ctrl = TextEditingController();
+    return showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: c.hoja,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+        title: Text('Rechazar movimiento', style: t.seccion.copyWith(color: c.tinta)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Ingresá el motivo del rechazo para que quede registrado:',
+                style: t.pie.copyWith(color: c.tintaSuave)),
+            const SizedBox(height: 12),
+            TextField(
+              controller: ctrl,
+              autofocus: true,
+              style: t.cuerpo.copyWith(color: c.tinta),
+              decoration: InputDecoration(
+                hintText: 'Ej: No coincide / No autorizado',
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(6)),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(null),
+            child: Text('Cancelar', style: t.etiqueta.copyWith(color: c.tintaSuave)),
+          ),
+          TextButton(
+            onPressed: () {
+              final val = ctrl.text.trim();
+              Navigator.of(ctx).pop(val.isNotEmpty ? val : 'Rechazado por integrante');
+            },
+            child: Text('Rechazar', style: t.etiqueta.copyWith(color: c.selloTexto, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
     );
   }
 
@@ -1112,6 +1295,113 @@ class _HojaInvitarState extends ConsumerState<_HojaInvitar> {
             MitiBoton(texto: 'Invitar', cargando: _trabajando, onTap: _invitar),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _FilaGasto extends StatelessWidget {
+  const _FilaGasto({
+    required this.gasto,
+    required this.campanaId,
+    this.miId,
+  });
+
+  final Map<String, dynamic> gasto;
+  final String campanaId;
+  final String? miId;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.color;
+    final t = context.texto;
+
+    final descripcion = gasto['descripcion'] as String? ?? 'Gasto';
+    final importe = gasto['importe'] as int? ?? 0;
+    final origen = gasto['origen'] as String? ?? 'bolsillo';
+    final estado = gasto['estado'] as String? ?? 'pendiente';
+    final creadoPorNombre = gasto['creado_por_nombre'] as String? ?? 'Integrante';
+    final cajaNombre = gasto['caja_nombre'] as String?;
+    final motivoRechazo = gasto['motivo_rechazo'] as String?;
+
+    final esConfirmado = estado == 'confirmado';
+    final esRechazado = estado == 'rechazado';
+
+    Color colorEstado;
+    String textoEstado;
+    if (esConfirmado) {
+      colorEstado = c.ok;
+      textoEstado = 'APROBADO';
+    } else if (esRechazado) {
+      colorEstado = c.selloTexto;
+      textoEstado = 'RECHAZADO';
+    } else {
+      colorEstado = c.mostaza;
+      textoEstado = 'PENDIENTE';
+    }
+
+    final detalleOrigen = origen == 'bolsillo'
+        ? 'Puso de su bolsillo · Por $creadoPorNombre'
+        : 'De ${cajaNombre ?? 'caja'} · Por $creadoPorNombre';
+
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
+      decoration: BoxDecoration(border: Border(bottom: BorderSide(color: c.troquel))),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        descripcion,
+                        style: t.cuerpo.copyWith(fontWeight: FontWeight.w700, color: c.tinta),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: colorEstado.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        textoEstado,
+                        style: t.pie.copyWith(
+                          color: colorEstado,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 10,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 2),
+                Text(detalleOrigen, style: t.pie.copyWith(color: c.tintaSuave)),
+                if (esRechazado && motivoRechazo != null && motivoRechazo.isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    'Motivo: $motivoRechazo',
+                    style: t.pie.copyWith(color: c.selloTexto, fontStyle: FontStyle.italic),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            plata(importe),
+            style: t.importe.copyWith(
+              color: c.tinta,
+              fontSize: 18,
+              decoration: esRechazado ? TextDecoration.lineThrough : null,
+            ),
+          ),
+        ],
       ),
     );
   }

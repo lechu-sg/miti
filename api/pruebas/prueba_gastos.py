@@ -65,7 +65,9 @@ def entrar(email, nombre):
     st, res = llamar("POST", "/acceso/verificar", cuerpo={
         "email": email, "codigo": codigo, "nombre": nombre, "nacimiento": "1995-05-10"
     })
-    return res["token"], res["usuario"]["id"]
+    token = res["token"]
+    st_yo, yo = llamar("GET", "/yo", token=token)
+    return token, yo["id"]
 
 
 print("\n== 1. Preparar usuarios y campaña con 3 integrantes ==")
@@ -77,7 +79,7 @@ st, c = llamar("POST", "/campanas", token=t_ana, cuerpo={
     "nombre": f"Rifa Gastos {sello}",
     "tipo": "rifa",
     "moneda": "ARS",
-    "config": {"desde": 1, "hasta": 100, "precio": 500000},  # $5.000 cada número
+    "rifa": {"desde": 1, "hasta": 100, "precio": 500000, "asignacion": "bolsa", "sorteo": "externo"},  # $5.000 cada número
 })
 probar("crear campaña", 201, st)
 camp_id = c["id"]
@@ -100,10 +102,9 @@ caja_efectivo_beto = next(c["id"] for c in cajas if c["titular_id"] == id_beto a
 print("\n== 2. Venta inicial para recaudar fondos ==")
 # Ana vende 4 números en efectivo ($20.000)
 st, v = llamar("POST", f"/campanas/{camp_id}/ventas", token=t_ana, cuerpo={
-    "comprador_nombre": "Comprador 1",
-    "comprador_telefono": "1111111111",
+    "comprador": {"nombre": "Comprador 1", "telefono": "1111111111"},
     "numeros": [1, 2, 3, 4],
-    "destino": "efectivo",
+    "destino_cobro": "efectivo",
 })
 probar("venta Ana $20.000", 201, st)
 
@@ -221,7 +222,7 @@ print("\n== 7. Verificación de cálculo contable y reintegro en liquidación ==
 #        B_Beto = $0 - ($2.333,33 + $4.000) = -$6.333,33 (debe recibir $6.333,33).
 #   Carlos: S_Carlos = $2.333,33. R_Carlos = $0. H_Carlos = $0.
 #        B_Carlos = $0 - $2.333,33 = -$2.333,33 (debe recibir $2.333,33).
-base_cob = sim["base_cobrada"]
+base_cob = sim["cobrada"]
 probar("neto en base cobrada es $7.000", 700000, base_cob["neto"])
 probar("cuota parte es $2.333,33", 233333, base_cob["parte"])
 probar("gastos totales en simulación $13.000", 1300000, base_cob["gastos"])

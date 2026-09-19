@@ -169,15 +169,29 @@ Antes de publicar una versión nueva, subí `version:` en `app/pubspec.yaml`. La
     - `flutter analyze` 0 issues, `flutter test` 7/7 en verde (incluyendo `liquidacion_test.dart`).
   - **Última APK publicada:** `https://miti.sole.ar/descargas/miti-0.5.0.apk` (hash SHA256 `952EC33D4AE9EEEDBF88ABC65CB89091A0BEB3F0167D90782C47263E39B11746`).
 
+- **Fase de Gastos de Campaña (§3.7 y §3.9): HECHA (v0.5.1).**
+  - Migración 0007 aplicada en el VPS (`gastos` con `id, campana_id, movimiento_id, descripcion, origen, caja_id, creado`).
+  - Reglas contables y de negocio (§3.7):
+    - Origen: `bolsillo` (reintegrable en liquidación $R_i$, no toca cajas) vs `caja` (egreso de caja en custodia, valida saldo confirmado disponible $\ge$ importe).
+    - Aprobación cruzada: Gasto de participante lo aprueba el creador/admin. Gasto del creador/admin lo aprueba cualquier otro integrante activo. Prohibida la auto-aprobación (403 Forbidden).
+    - Impacto en liquidación: Gastos pendientes impiden liquidar (409 Conflict). Gastos de bolsillo aprobados ($R_i$) se reintegran manteniendo la conservación $\sum B_i = 0$.
+  - Pruebas de API contra `miti.sole.ar`:
+    - `prueba_gastos.py`: 33/33 en verde (bolsillo, caja con/sin fondos, auto-aprobación bloqueada, aprobación cruzada, impedimento en liquidación, cálculo de reintegros).
+    - Regresiones: `prueba_fase1.py` (39/39), `prueba_fase2.py` (55/55), `prueba_productos.py` (43/43), `prueba_liquidacion.py` (34/34).
+  - App móvil Flutter (v0.5.1+10):
+    - `HojaGasto` (`app/lib/pantallas/hoja_gasto.dart`): modal Talonario con descripción, importe en pesos, selector interactivo de origen (Mi bolsillo vs De mi caja con visualización de saldo en custodia).
+    - `PantallaCampana`: botón "Registrar gasto", desglose de gastos en ticket de recaudación, sección visual "GASTOS DE CAMPAÑA" con chips de estado (`PENDIENTE`, `APROBADO`, `RECHAZADO`), motivo de rechazo y origen.
+    - Flujo de evaluación unificado en aviso Talonario (`MitiAviso`), con diálogo para rechazar con motivo o aprobar.
+    - `flutter analyze` 0 issues, `flutter test` 8/8 en verde (incluyendo `gastos_test.dart`).
+  - **Última APK publicada:** `https://miti.sole.ar/descargas/miti-0.5.1.apk` (hash SHA256 `8ab22cf0db874497059e00a47e965db878241621084cc9417ba189db829cb6f1`).
+
 ## 7. Pasos a seguir, en orden
 
-1. **El usuario prueba la APK 0.5.0 en el celular**:
-   - Abrir una campaña en curso.
-   - Si la campaña está activa, cerrarla con el botón "Cerrar campaña para liquidar".
-   - Probar la pantalla de liquidación: comparar Base Cobrada y Base Vendida, verificar que calcule bien las partes y transferencias sugeridas.
-   - Si hay reservas activas o cobros pendientes, verificar que avise el impedimento y deshabilite la confirmación.
-   - Confirmar la liquidación y verificar la lista de transferencias generada.
-   - Marcar una transferencia como enviada/pagada y confirmar el cobro.
+1. **El usuario prueba la APK 0.5.1 en el celular**:
+   - Registrar un gasto de bolsillo ("Puse de mi plata").
+   - Registrar un gasto desde la caja en custodia ("De lo cobrado en mi caja").
+   - Evaluar los gastos con el otro integrante (aprobar o rechazar con motivo).
+   - Verificar que los gastos aprobados impacten en la liquidación y reintegros.
 2. **Siguientes funciones del backlog**:
    - Notificaciones push con Firebase Cloud Messaging (FCM).
    - Exportación de movimientos y balance a PDF y Excel (§3.10).
