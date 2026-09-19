@@ -522,14 +522,17 @@ async def actualizar_transferencia(
         )
     )
 
+    de_nombre = t.de_usuario.nombre
+    a_nombre = t.a_usuario.nombre
+
     await s.commit()
 
     return TransferenciaLiquidacionSalida(
         id=t.id,
         de_usuario_id=t.de_usuario_id,
-        de_nombre=t.de_usuario.nombre,
+        de_nombre=de_nombre,
         a_usuario_id=t.a_usuario_id,
-        a_nombre=t.a_usuario.nombre,
+        a_nombre=a_nombre,
         importe=t.importe,
         estado=t.estado,
         comprobante_id=t.comprobante_id,

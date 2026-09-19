@@ -65,15 +65,18 @@ c1, c2, c3 = codigo_de(U1), codigo_de(U2), codigo_de(U3)
 
 _, r1 = llamar("POST", "/acceso/verificar", cuerpo={"email": U1, "codigo": c1, "nombre": "Ana Liq", "nacimiento": "1990-01-01"})
 t1 = r1["token"]
-uid1 = r1["usuario"]["id"]
+_, yo1 = llamar("GET", "/yo", t1)
+uid1 = yo1["id"]
 
 _, r2 = llamar("POST", "/acceso/verificar", cuerpo={"email": U2, "codigo": c2, "nombre": "Beto Liq", "nacimiento": "1991-02-02"})
 t2 = r2["token"]
-uid2 = r2["usuario"]["id"]
+_, yo2 = llamar("GET", "/yo", t2)
+uid2 = yo2["id"]
 
 _, r3 = llamar("POST", "/acceso/verificar", cuerpo={"email": U3, "codigo": c3, "nombre": "Carlos Liq", "nacimiento": "1992-03-03"})
 t3 = r3["token"]
-uid3 = r3["usuario"]["id"]
+_, yo3 = llamar("GET", "/yo", t3)
+uid3 = yo3["id"]
 
 # Ana crea campaña de rifa
 est, camp = llamar("POST", "/campanas", t1, {
@@ -146,7 +149,8 @@ probar("transferencia de Ana a Carlos por $3.000", 300_000, transf_ven[0]["impor
 
 print("\n== 4. Impedimento: reserva activa impide liquidar ==")
 # Beto reserva número 50
-llamar("POST", f"/campanas/{cid}/numeros/50/reserva", t2, {"nota": "Reserva de prueba"})
+est_res, _ = llamar("POST", f"/campanas/{cid}/numeros/50/reservar", t2, {"nota": "Reserva de prueba"})
+probar("reserva número 50", 200, est_res)
 est, sim_imp = llamar("GET", f"/campanas/{cid}/liquidacion/simulacion", t1)
 probar("con reserva no puede liquidar", False, sim_imp.get("puede_liquidar"))
 probar("hay impedimentos", True, len(sim_imp.get("impedimentos", [])) > 0)
@@ -156,7 +160,8 @@ est, _ = llamar("POST", f"/campanas/{cid}/liquidacion", t1, {"base": "cobrada"})
 probar("confirmar con impedimento da 409", 409, est)
 
 # Liberar reserva
-llamar("DELETE", f"/campanas/{cid}/numeros/50/reserva", t2)
+est_lib, _ = llamar("POST", f"/campanas/{cid}/numeros/50/liberar", t2)
+probar("liberar número 50", 200, est_lib)
 
 print("\n== 5. Confirmar Liquidación (en Base Cobrada) ==")
 # Beto (no admin) no puede liquidar
