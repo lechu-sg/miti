@@ -123,6 +123,7 @@ class Campana(Base):
     productos: Mapped[list["Producto"]] = relationship(back_populates="campana", lazy="selectin")
     liquidacion: Mapped["Liquidacion | None"] = relationship(back_populates="campana", uselist=False, lazy="selectin")
     transferencias_liq: Mapped[list["TransferenciaLiquidacion"]] = relationship(back_populates="campana", lazy="selectin")
+    gastos: Mapped[list["Gasto"]] = relationship(back_populates="campana", lazy="selectin")
 
 
 class Integrante(Base):
@@ -419,4 +420,37 @@ class TransferenciaLiquidacion(Base):
     campana: Mapped["Campana"] = relationship(back_populates="transferencias_liq")
     de_usuario: Mapped["Usuario"] = relationship(foreign_keys=[de_usuario_id], lazy="selectin")
     a_usuario: Mapped["Usuario"] = relationship(foreign_keys=[a_usuario_id], lazy="selectin")
+
+
+class Gasto(Base):
+    """Gasto de la campaña (§3.7 de DEFINICION.md).
+
+    Asociado a un movimiento contable único de tipo 'gasto'.
+    El origen puede ser 'bolsillo' (a reintegrar en liquidación) o 'caja' (descuenta de la caja).
+    """
+
+    __tablename__ = "gastos"
+    __table_args__ = (
+        CheckConstraint("origen in ('caja', 'bolsillo')", name="gastos_origen"),
+        Index("ix_gastos_campana_creado", "campana_id", "creado"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=_uuid)
+    campana_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("campanas.id", ondelete="CASCADE"), nullable=False
+    )
+    movimiento_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("movimientos.id", ondelete="CASCADE"), nullable=False, unique=True
+    )
+    descripcion: Mapped[str] = mapped_column(Text, nullable=False)
+    origen: Mapped[str] = mapped_column(String(20), nullable=False)
+    caja_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("cajas.id", ondelete="SET NULL")
+    )
+    creado: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    campana: Mapped["Campana"] = relationship(back_populates="gastos")
+    movimiento: Mapped["Movimiento"] = relationship(lazy="selectin")
+    caja: Mapped["Caja | None"] = relationship(lazy="selectin")
+
 

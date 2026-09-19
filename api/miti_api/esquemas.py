@@ -298,6 +298,7 @@ class RecaudacionSalida(BaseModel):
     numeros_vendidos: int = 0
     cajas: list[RecaudacionCaja]
     productos_desglose: list[dict] = []
+    gastos: int = 0
 
 
 # Sincronización offline (§5)
@@ -396,4 +397,33 @@ class LiquidacionSalida(BaseModel):
 class ActualizarTransferenciaEntrada(BaseModel):
     accion: str = Field(pattern="^(pagar|confirmar)$")
     comprobante_id: uuid.UUID | None = None
+
+
+# Gastos (§3.7)
+class CrearGastoEntrada(BaseModel):
+    descripcion: str = Field(min_length=2, max_length=500)
+    importe: int = Field(gt=0)
+    origen: str = Field(pattern="^(bolsillo|caja)$")
+    caja_id: uuid.UUID | None = None
+    comprobante_id: uuid.UUID | None = None
+
+
+class GastoSalida(BaseModel):
+    id: uuid.UUID
+    campana_id: uuid.UUID
+    movimiento_id: uuid.UUID
+    descripcion: str
+    importe: int
+    origen: str
+    caja_id: uuid.UUID | None = None
+    caja_nombre: str | None = None
+    estado: str
+    creado_por: uuid.UUID
+    creado_por_nombre: str
+    aprobado_por: uuid.UUID | None = None
+    aprobado_por_nombre: str | None = None
+    motivo_rechazo: str | None = None
+    comprobante_id: uuid.UUID | None = None
+    creado: datetime
+
 

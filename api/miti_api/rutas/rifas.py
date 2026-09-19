@@ -765,8 +765,34 @@ async def confirmar_movimiento(
     if mov.estado != "pendiente":
         raise HTTPException(status.HTTP_409_CONFLICT, f"el movimiento no está pendiente (estado: {mov.estado})")
 
-    if mov.requiere_aprobacion_de != ctx.usuario.id and not ctx.es_admin:
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "no tenés permiso para confirmar este movimiento")
+    # Reglas de aprobación (§3.7)
+    if mov.creado_por == ctx.usuario.id:
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN,
+            "no podés aprobar ni confirmar un movimiento cargado por vos mismo",
+        )
+
+    if mov.tipo == "gasto":
+        if mov.creado_por == ctx.campana.creador_id:
+            # Gasto del admin: lo evalúa cualquier otro integrante activo
+            if ctx.usuario.id == ctx.campana.creador_id:
+                raise HTTPException(
+                    status.HTTP_403_FORBIDDEN,
+                    "los gastos del administrador deben ser aprobados por otro integrante",
+                )
+        else:
+            # Gasto de integrante: lo aprueba el admin
+            if not ctx.es_admin:
+                raise HTTPException(
+                    status.HTTP_403_FORBIDDEN,
+                    "solo el administrador puede aprobar los gastos de los integrantes",
+                )
+    else:
+        if mov.requiere_aprobacion_de != ctx.usuario.id and not ctx.es_admin:
+            raise HTTPException(
+                status.HTTP_403_FORBIDDEN,
+                "no tenés permiso para confirmar este movimiento",
+            )
 
     mov.estado = "confirmado"
     mov.aprobado_por = ctx.usuario.id
@@ -815,8 +841,34 @@ async def rechazar_movimiento(
     if mov.estado != "pendiente":
         raise HTTPException(status.HTTP_409_CONFLICT, f"el movimiento no está pendiente (estado: {mov.estado})")
 
-    if mov.requiere_aprobacion_de != ctx.usuario.id and not ctx.es_admin:
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "no tenés permiso para rechazar este movimiento")
+    # Reglas de aprobación (§3.7)
+    if mov.creado_por == ctx.usuario.id:
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN,
+            "no podés rechazar un movimiento cargado por vos mismo",
+        )
+
+    if mov.tipo == "gasto":
+        if mov.creado_por == ctx.campana.creador_id:
+            # Gasto del admin: lo evalúa cualquier otro integrante activo
+            if ctx.usuario.id == ctx.campana.creador_id:
+                raise HTTPException(
+                    status.HTTP_403_FORBIDDEN,
+                    "los gastos del administrador deben ser evaluados por otro integrante",
+                )
+        else:
+            # Gasto de integrante: lo evalúa el admin
+            if not ctx.es_admin:
+                raise HTTPException(
+                    status.HTTP_403_FORBIDDEN,
+                    "solo el administrador puede rechazar los gastos de los integrantes",
+                )
+    else:
+        if mov.requiere_aprobacion_de != ctx.usuario.id and not ctx.es_admin:
+            raise HTTPException(
+                status.HTTP_403_FORBIDDEN,
+                "no tenés permiso para rechazar este movimiento",
+            )
 
     mov.estado = "rechazado"
     mov.aprobado_por = ctx.usuario.id
@@ -862,17 +914,20 @@ async def ver_recaudacion(
     await limpiar_reservas_vencidas(s, ctx.campana.id)
 
     # 1. Movimientos
-    movs = (
+    todos_movs = (
         await s.execute(
             select(Movimiento).where(
                 Movimiento.campana_id == ctx.campana.id,
-                Movimiento.tipo == "cobro",
             )
         )
     ).scalars().all()
 
-    cobrado = sum(m.importe for m in movs if m.estado == "confirmado")
-    pendiente = sum(m.importe for m in movs if m.estado == "pendiente")
+    cobros = [m for m in todos_movs if m.tipo == "cobro"]
+    gastos = [m for m in todos_movs if m.tipo == "gasto"]
+
+    cobrado = sum(m.importe for m in cobros if m.estado == "confirmado")
+    pendiente = sum(m.importe for m in cobros if m.estado == "pendiente")
+    total_gastos = sum(m.importe for m in gastos if m.estado == "confirmado")
 
     # 2. Ventas
     ventas = (
@@ -906,11 +961,15 @@ async def ver_recaudacion(
 
     cajas_salida = []
     for c, titular_nombre in cajas_con_usuario:
-        c_confirmado = sum(
-            m.importe for m in movs if m.caja_destino == c.id and m.estado == "confirmado"
+        c_ingresos_conf = sum(
+            m.importe for m in todos_movs if m.caja_destino == c.id and m.estado == "confirmado"
         )
+        c_egresos_conf = sum(
+            m.importe for m in todos_movs if m.caja_origen == c.id and m.estado == "confirmado"
+        )
+        c_confirmado = c_ingresos_conf - c_egresos_conf
         c_pendiente = sum(
-            m.importe for m in movs if m.caja_destino == c.id and m.estado == "pendiente"
+            m.importe for m in cobros if m.caja_destino == c.id and m.estado == "pendiente"
         )
         cajas_salida.append(
             RecaudacionCaja(
@@ -961,4 +1020,5 @@ async def ver_recaudacion(
         numeros_vendidos=vendidos,
         cajas=cajas_salida,
         productos_desglose=productos_desglose,
+        gastos=total_gastos,
     )
