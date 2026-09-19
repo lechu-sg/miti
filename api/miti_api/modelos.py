@@ -124,6 +124,7 @@ class Campana(Base):
     liquidacion: Mapped["Liquidacion | None"] = relationship(back_populates="campana", uselist=False, lazy="selectin")
     transferencias_liq: Mapped[list["TransferenciaLiquidacion"]] = relationship(back_populates="campana", lazy="selectin")
     gastos: Mapped[list["Gasto"]] = relationship(back_populates="campana", lazy="selectin")
+    sorteo: Mapped["Sorteo | None"] = relationship(back_populates="campana", uselist=False, lazy="selectin")
 
 
 class Integrante(Base):
@@ -452,5 +453,33 @@ class Gasto(Base):
     campana: Mapped["Campana"] = relationship(back_populates="gastos")
     movimiento: Mapped["Movimiento"] = relationship(lazy="selectin")
     caja: Mapped["Caja | None"] = relationship(lazy="selectin")
+
+
+class Sorteo(Base):
+    """Resultado oficial del sorteo de una rifa (§3.3 y §7.8 de DEFINICION.md)."""
+
+    __tablename__ = "sorteos"
+
+    campana_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("campanas.id", ondelete="CASCADE"), primary_key=True
+    )
+    numero_sorteado: Mapped[int] = mapped_column(Integer, nullable=False)
+    numero_ganador: Mapped[int | None] = mapped_column(Integer)
+    premio: Mapped[str | None] = mapped_column(String(100))
+    estado_resultado: Mapped[str] = mapped_column(String(30), nullable=False)
+    ganador_nombre: Mapped[str | None] = mapped_column(String(100))
+    ganador_telefono: Mapped[str | None] = mapped_column(String(40))
+    vendedor_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("usuarios.id", ondelete="SET NULL")
+    )
+    vendedor_nombre: Mapped[str | None] = mapped_column(String(100))
+    venta_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("ventas.id", ondelete="SET NULL")
+    )
+    codigo_corto: Mapped[str | None] = mapped_column(String(10))
+    creado_por: Mapped[uuid.UUID] = mapped_column(ForeignKey("usuarios.id"), nullable=False)
+    creado: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    campana: Mapped["Campana"] = relationship(back_populates="sorteo")
 
 

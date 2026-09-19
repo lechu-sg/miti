@@ -6,7 +6,7 @@ import uuid
 from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -15,6 +15,8 @@ from ..config import ajustes
 from ..db import sesion
 from ..esquemas import (
     CompradorSalida,
+    CrearEntregaEntrada,
+    ItemVentaProductoSalida,
     MovimientoSalida,
     NuevaVenta,
     NuevoCobro,
@@ -22,8 +24,8 @@ from ..esquemas import (
     RechazarMovimiento,
     RecaudacionCaja,
     RecaudacionSalida,
-    ItemVentaProductoSalida,
     ReservarNumero,
+    SolicitarAnulacionEntrada,
     VentaSalida,
 )
 from ..modelos import (
@@ -753,6 +755,197 @@ async def listar_movimientos(
     ]
 
 
+@ruteador.post("/campanas/{campana_id}/entregas", response_model=MovimientoSalida, status_code=status.HTTP_201_CREATED)
+async def registrar_entrega(
+    datos: CrearEntregaEntrada,
+    ctx: Contexto = Depends(contexto_activo),
+    s: AsyncSession = Depends(sesion),
+) -> MovimientoSalida:
+    """Registra una entrega de dinero entre cajas (§3.6 de DEFINICION.md)."""
+    if ctx.campana.estado in ("liquidada", "archivada"):
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            f"no se pueden registrar entregas en una campaña con estado «{ctx.campana.estado}»",
+        )
+
+    caja_origen = await s.get(Caja, datos.caja_origen_id)
+    if caja_origen is None or caja_origen.campana_id != ctx.campana.id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "la caja de origen no existe en esta campaña")
+
+    if caja_origen.titular_id != ctx.usuario.id:
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN,
+            "solo podés entregar dinero de una caja que tenés en custodia",
+        )
+
+    caja_destino = await s.get(Caja, datos.caja_destino_id)
+    if caja_destino is None or caja_destino.campana_id != ctx.campana.id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "la caja de destino no existe en esta campaña")
+
+    if caja_destino.id == caja_origen.id:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "la caja de origen y destino deben ser distintas")
+
+    # Verificar saldo disponible en caja_origen
+    movs = (
+        await s.execute(
+            select(Movimiento).where(
+                Movimiento.campana_id == ctx.campana.id,
+                Movimiento.estado == "confirmado",
+            )
+        )
+    ).scalars().all()
+    ingresos = sum(m.importe for m in movs if m.caja_destino == caja_origen.id)
+    egresos = sum(m.importe for m in movs if m.caja_origen == caja_origen.id)
+    saldo_disponible = ingresos - egresos
+
+    if saldo_disponible < datos.importe:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            f"saldo insuficiente en la caja de origen (disponible: ${saldo_disponible // 100})",
+        )
+
+    receptor_id = caja_destino.titular_id
+    ahora = datetime.now(UTC)
+    mov = Movimiento(
+        id=uuid.uuid4(),
+        campana_id=ctx.campana.id,
+        tipo="entrega",
+        caja_origen=caja_origen.id,
+        caja_destino=caja_destino.id,
+        importe=datos.importe,
+        estado="pendiente",
+        requiere_aprobacion_de=receptor_id,
+        motivo=f"Entrega de {caja_origen.tipo} a {caja_destino.tipo}",
+        comprobante_id=datos.comprobante_id,
+        creado_por=ctx.usuario.id,
+        creado=ahora,
+    )
+    s.add(mov)
+    s.add(
+        Historial(
+            campana_id=ctx.campana.id,
+            actor_id=ctx.usuario.id,
+            accion="entrega_registrada",
+            objeto="movimiento",
+            objeto_id=mov.id,
+            detalle={"importe": datos.importe, "origen": str(caja_origen.id), "destino": str(caja_destino.id)},
+        )
+    )
+    await s.commit()
+    await s.refresh(mov)
+
+    return MovimientoSalida(
+        id=mov.id,
+        campana_id=mov.campana_id,
+        tipo=mov.tipo,
+        caja_origen=mov.caja_origen,
+        caja_destino=mov.caja_destino,
+        importe=mov.importe,
+        estado=mov.estado,
+        requiere_aprobacion_de=mov.requiere_aprobacion_de,
+        aprobado_por=mov.aprobado_por,
+        motivo=mov.motivo,
+        venta_id=mov.venta_id,
+        comprobante_id=mov.comprobante_id,
+        creado_por=mov.creado_por,
+        creado=mov.creado,
+    )
+
+
+@ruteador.post("/campanas/{campana_id}/ventas/{venta_id}/anular", response_model=MovimientoSalida, status_code=status.HTTP_201_CREATED)
+async def anular_venta(
+    venta_id: uuid.UUID,
+    datos: SolicitarAnulacionEntrada,
+    ctx: Contexto = Depends(contexto_activo),
+    s: AsyncSession = Depends(sesion),
+) -> MovimientoSalida:
+    """Solicita anulación de una venta (§3.8 de DEFINICION.md). Requiere aprobación de otro integrante."""
+    if ctx.campana.estado in ("liquidada", "archivada"):
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            f"no se pueden anular ventas en una campaña con estado «{ctx.campana.estado}»",
+        )
+
+    venta = await s.get(Venta, venta_id)
+    if venta is None or venta.campana_id != ctx.campana.id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "la venta no existe")
+
+    if venta.estado == "anulada":
+        raise HTTPException(status.HTTP_409_CONFLICT, "la venta ya está anulada")
+
+    # Verificar si ya tiene solicitud de anulación pendiente
+    anul_pend = (
+        await s.execute(
+            select(Movimiento).where(
+                Movimiento.campana_id == ctx.campana.id,
+                Movimiento.venta_id == venta.id,
+                Movimiento.tipo == "anulacion",
+                Movimiento.estado == "pendiente",
+            )
+        )
+    ).scalar_one_or_none()
+    if anul_pend is not None:
+        raise HTTPException(status.HTTP_409_CONFLICT, "ya existe una anulación pendiente para esta venta")
+
+    # Buscar el cobro original para asociar caja_origen
+    cobro = (
+        await s.execute(
+            select(Movimiento).where(
+                Movimiento.campana_id == ctx.campana.id,
+                Movimiento.venta_id == venta.id,
+                Movimiento.tipo == "cobro",
+            )
+        )
+    ).scalars().first()
+
+    ahora = datetime.now(UTC)
+    mov = Movimiento(
+        id=uuid.uuid4(),
+        campana_id=ctx.campana.id,
+        tipo="anulacion",
+        caja_origen=cobro.caja_destino if cobro else None,
+        caja_destino=None,
+        importe=venta.importe,
+        estado="pendiente",
+        requiere_aprobacion_de=None,  # Cualquier otro integrante no solicitante puede aprobar
+        motivo=f"Anulación de venta: {datos.motivo.strip()}",
+        venta_id=venta.id,
+        anula_a=cobro.id if cobro else None,
+        creado_por=ctx.usuario.id,
+        creado=ahora,
+    )
+    s.add(mov)
+    s.add(
+        Historial(
+            campana_id=ctx.campana.id,
+            actor_id=ctx.usuario.id,
+            accion="anulacion_solicitada",
+            objeto="venta",
+            objeto_id=venta.id,
+            detalle={"motivo": datos.motivo.strip(), "importe": venta.importe},
+        )
+    )
+    await s.commit()
+    await s.refresh(mov)
+
+    return MovimientoSalida(
+        id=mov.id,
+        campana_id=mov.campana_id,
+        tipo=mov.tipo,
+        caja_origen=mov.caja_origen,
+        caja_destino=mov.caja_destino,
+        importe=mov.importe,
+        estado=mov.estado,
+        requiere_aprobacion_de=mov.requiere_aprobacion_de,
+        aprobado_por=mov.aprobado_por,
+        motivo=mov.motivo,
+        venta_id=mov.venta_id,
+        comprobante_id=mov.comprobante_id,
+        creado_por=mov.creado_por,
+        creado=mov.creado,
+    )
+
+
 @ruteador.post("/campanas/{campana_id}/movimientos/{movimiento_id}/confirmar", response_model=MovimientoSalida)
 async def confirmar_movimiento(
     movimiento_id: uuid.UUID,
@@ -786,6 +979,29 @@ async def confirmar_movimiento(
                 raise HTTPException(
                     status.HTTP_403_FORBIDDEN,
                     "solo el administrador puede aprobar los gastos de los integrantes",
+                )
+    elif mov.tipo == "entrega":
+        # Requiere aprobación del titular de la caja que recibe el dinero (§3.6)
+        if mov.requiere_aprobacion_de != ctx.usuario.id:
+            raise HTTPException(
+                status.HTTP_403_FORBIDDEN,
+                "solo el titular de la caja que recibe el dinero puede confirmar la entrega",
+            )
+    elif mov.tipo == "anulacion":
+        # Requiere aprobación de otro integrante (§3.8)
+        if mov.creado_por == ctx.usuario.id:
+            raise HTTPException(
+                status.HTTP_403_FORBIDDEN,
+                "la anulación debe ser aprobada por otro integrante",
+            )
+        if mov.venta_id:
+            venta = await s.get(Venta, mov.venta_id)
+            if venta:
+                venta.estado = "anulada"
+                await s.execute(
+                    update(Numero)
+                    .where(Numero.campana_id == ctx.campana.id, Numero.venta_id == venta.id)
+                    .values(estado="libre", venta_id=None, reserva_vence=None, reserva_nota=None)
                 )
     else:
         if mov.requiere_aprobacion_de != ctx.usuario.id and not ctx.es_admin:
@@ -863,6 +1079,18 @@ async def rechazar_movimiento(
                     status.HTTP_403_FORBIDDEN,
                     "solo el administrador puede rechazar los gastos de los integrantes",
                 )
+    elif mov.tipo == "entrega":
+        if mov.requiere_aprobacion_de != ctx.usuario.id:
+            raise HTTPException(
+                status.HTTP_403_FORBIDDEN,
+                "solo el titular de la caja que recibe el dinero puede rechazar la entrega",
+            )
+    elif mov.tipo == "anulacion":
+        if mov.creado_por == ctx.usuario.id:
+            raise HTTPException(
+                status.HTTP_403_FORBIDDEN,
+                "no podés evaluar tu propia solicitud de anulación",
+            )
     else:
         if mov.requiere_aprobacion_de != ctx.usuario.id and not ctx.es_admin:
             raise HTTPException(

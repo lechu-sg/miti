@@ -427,3 +427,38 @@ class GastoSalida(BaseModel):
     creado: datetime
 
 
+# Entregas entre cajas (§3.6)
+class CrearEntregaEntrada(BaseModel):
+    caja_origen_id: uuid.UUID
+    caja_destino_id: uuid.UUID
+    importe: int = Field(gt=0)
+    comprobante_id: uuid.UUID | None = None
+
+
+# Anulaciones (§3.8)
+class SolicitarAnulacionEntrada(BaseModel):
+    motivo: str = Field(min_length=3, max_length=500)
+
+
+# Sorteos de rifa (§3.3 y §7.8)
+class RegistrarSorteoEntrada(BaseModel):
+    numero_sorteado: int = Field(ge=0)
+    premio: str | None = Field(default=None, max_length=100)
+
+
+class SorteoSalida(BaseModel):
+    campana_id: uuid.UUID
+    numero_sorteado: int
+    numero_ganador: int | None = None
+    premio: str | None = None
+    estado_resultado: str
+    ganador_nombre: str | None = None
+    ganador_telefono: str | None = None
+    vendedor_id: uuid.UUID | None = None
+    vendedor_nombre: str | None = None
+    venta_id: uuid.UUID | None = None
+    codigo_corto: str | None = None
+    creado_por: uuid.UUID
+    creado: datetime
+
+
