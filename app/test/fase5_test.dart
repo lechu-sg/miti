@@ -58,7 +58,7 @@ void main() {
     expect(find.text('Registrar entrega'), findsOneWidget);
   });
 
-  testWidgets('PantallaGanador muestra tarjeta con número ganador', (tester) async {
+  testWidgets('PantallaGanador muestra tarjeta con múltiples premios y ganadores', (tester) async {
     tester.view.physicalSize = const Size(1080, 2400);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(() {
@@ -66,16 +66,30 @@ void main() {
       tester.view.resetDevicePixelRatio();
     });
 
-    final sorteo = {
-      'numero_sorteado': 77,
-      'numero_ganador': 77,
-      'premio': 'Bicicleta Rodado 29',
-      'estado_resultado': 'ganador_encontrado',
-      'ganador_nombre': 'Carlos Ganador',
-      'ganador_telefono': '1122334455',
-      'vendedor_nombre': 'Ana Vendedora',
-      'codigo_corto': 'GAN001',
-    };
+    final sorteos = [
+      {
+        'orden': 1,
+        'numero_sorteado': 77,
+        'numero_ganador': 77,
+        'premio': 'Moto 110cc 0km',
+        'estado_resultado': 'ganador_encontrado',
+        'ganador_nombre': 'Carlos Ganador',
+        'ganador_telefono': '1122334455',
+        'vendedor_nombre': 'Ana Vendedora',
+        'codigo_corto': 'GAN001',
+      },
+      {
+        'orden': 2,
+        'numero_sorteado': 12,
+        'numero_ganador': 1,
+        'premio': 'Smart TV 50 pulgadas',
+        'estado_resultado': 'siguiente_vendido',
+        'ganador_nombre': 'Lucia Ganadora',
+        'ganador_telefono': '1199887766',
+        'vendedor_nombre': 'Beto Vendedor',
+        'codigo_corto': 'GAN002',
+      },
+    ];
 
     await tester.pumpWidget(
       ProviderScope(
@@ -88,20 +102,24 @@ void main() {
             campanaId: 'camp-1',
             campanaNombre: 'Gran Rifa Anual',
             esAdmin: true,
-            sorteoInicial: sorteo,
+            sorteosIniciales: sorteos,
           ),
         ),
       ),
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('SORTEO Y GANADOR'), findsOneWidget);
+    expect(find.text('RESULTADOS DEL SORTEO'), findsOneWidget);
     expect(find.text('GRAN RIFA ANUAL'), findsOneWidget);
-    expect(find.text('¡TENEMOS GANADOR!'), findsOneWidget);
-    expect(find.text('Bicicleta Rodado 29'), findsOneWidget);
+    expect(find.text('¡RESULTADOS DEL SORTEO!'), findsOneWidget);
+    expect(find.text('1° PREMIO'), findsOneWidget);
+    expect(find.text('Moto 110cc 0km'), findsOneWidget);
     expect(find.text('#77'), findsOneWidget);
     expect(find.text('Carlos Ganador'), findsOneWidget);
-    expect(find.text('1122334455'), findsOneWidget);
-    expect(find.text('Enviar resultado por WhatsApp'), findsOneWidget);
+    expect(find.text('2° PREMIO'), findsOneWidget);
+    expect(find.text('Smart TV 50 pulgadas'), findsOneWidget);
+    expect(find.text('#1'), findsOneWidget);
+    expect(find.text('Lucia Ganadora'), findsOneWidget);
+    expect(find.text('Enviar resultados por WhatsApp'), findsOneWidget);
   });
 }

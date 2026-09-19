@@ -18,6 +18,7 @@ import 'grilla_numeros.dart';
 import 'hoja_conflictos.dart';
 import 'hoja_entrega.dart';
 import 'hoja_gasto.dart';
+import 'hoja_premios.dart';
 import 'liquidacion.dart';
 import 'venta_productos.dart';
 import '../nucleo/sincronizador.dart';
@@ -401,20 +402,42 @@ class PantallaCampana extends ConsumerWidget {
                         }
                       },
                     ),
+                    if (esAdmin && campana['estado'] != 'sorteada' && !estaLiquidada && campana['estado'] != 'archivada') ...[
+                      const SizedBox(height: 10),
+                      MitiBoton(
+                        texto: 'Premios de la rifa (${(config['premios'] as List<dynamic>?)?.length ?? 1})',
+                        icono: Icons.card_giftcard_outlined,
+                        secundario: true,
+                        onTap: () async {
+                          final premiosList = (config['premios'] as List<dynamic>?)?.map((e) => e.toString()).toList() ??
+                              [config['premio'] as String? ?? 'Primer Premio'];
+                          final res = await mostrarHojaPremios(
+                            context,
+                            campanaId: campanaId,
+                            premiosActuales: premiosList,
+                          );
+                          if (res != null) {
+                            ref.invalidate(campanaProvider(campanaId));
+                          }
+                        },
+                      ),
+                    ],
                     if (estaActiva || estaCerrada) ...[
                       const SizedBox(height: 10),
                       MitiBoton(
-                        texto: campana['estado'] == 'sorteada' ? 'Ver ganador del sorteo' : 'Sorteo y ganador',
+                        texto: campana['estado'] == 'sorteada' ? 'Ver ganadores del sorteo' : 'Sorteo y ganadores',
                         icono: Icons.emoji_events_outlined,
                         secundario: true,
                         onTap: () async {
+                          final premiosList = (config['premios'] as List<dynamic>?)?.map((e) => e.toString()).toList() ??
+                              [config['premio'] as String? ?? 'Primer Premio'];
                           final res = await Navigator.of(context).push(
                             MaterialPageRoute(
                               builder: (_) => PantallaGanador(
                                 campanaId: campanaId,
                                 campanaNombre: campana['nombre'] as String,
                                 esAdmin: esAdmin,
-                                premioDefault: config['premio'] as String?,
+                                premios: premiosList,
                               ),
                             ),
                           );

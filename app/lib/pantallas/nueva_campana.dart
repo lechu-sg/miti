@@ -22,6 +22,9 @@ class _PantallaNuevaCampanaState extends ConsumerState<PantallaNuevaCampana> {
   final _desde = TextEditingController(text: '0');
   final _hasta = TextEditingController(text: '99');
   final _precio = TextEditingController();
+  final List<TextEditingController> _premios = [
+    TextEditingController(text: 'Primer Premio'),
+  ];
 
   String _tipo = 'rifa';
   bool _guardando = false;
@@ -34,6 +37,9 @@ class _PantallaNuevaCampanaState extends ConsumerState<PantallaNuevaCampana> {
     _desde.dispose();
     _hasta.dispose();
     _precio.dispose();
+    for (final p in _premios) {
+      p.dispose();
+    }
     super.dispose();
   }
 
@@ -55,6 +61,8 @@ class _PantallaNuevaCampanaState extends ConsumerState<PantallaNuevaCampana> {
       return;
     }
 
+    final listaPremios = _premios.map((p) => p.text.trim()).where((p) => p.isNotEmpty).toList();
+
     setState(() => _guardando = true);
     try {
       final creada = await ref.read(apiProvider).crearCampana({
@@ -70,6 +78,7 @@ class _PantallaNuevaCampanaState extends ConsumerState<PantallaNuevaCampana> {
             'asignacion': 'bolsa',
             'sorteo': 'externo',
             'si_no_se_vendio': 'resortear',
+            'premios': listaPremios.isEmpty ? ['Primer Premio'] : listaPremios,
           },
       });
       if (mounted) Navigator.of(context).pop(creada);
@@ -196,6 +205,91 @@ class _PantallaNuevaCampanaState extends ConsumerState<PantallaNuevaCampana> {
                     ],
                   ),
                 ),
+              const SizedBox(height: 24),
+              Text('PREMIOS DE LA RIFA', style: t.sobrelinea.copyWith(color: c.tintaSuave)),
+              const SizedBox(height: 6),
+              Text(
+                'Ingresá los premios en orden del sorteo (1°, 2°, etc.). Podés editarlos más adelante.',
+                style: t.pie.copyWith(color: c.tintaSuave),
+              ),
+              const SizedBox(height: 12),
+              ...List.generate(_premios.length, (index) {
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 38,
+                        height: 38,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: c.papelHundido,
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: c.troquel),
+                        ),
+                        child: Text(
+                          '${index + 1}°',
+                          style: t.etiqueta.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: c.tinta,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: TextField(
+                          controller: _premios[index],
+                          textCapitalization: TextCapitalization.sentences,
+                          decoration: InputDecoration(
+                            labelText: '${index + 1}° Premio',
+                            hintText: 'Ej: Canasta navideña, Smart TV...',
+                          ),
+                        ),
+                      ),
+                      if (_premios.length > 1) ...[
+                        const SizedBox(width: 4),
+                        IconButton(
+                          icon: Icon(Icons.delete_outline, color: c.sello, size: 22),
+                          tooltip: 'Quitar premio',
+                          onPressed: () {
+                            setState(() {
+                              final ctrl = _premios.removeAt(index);
+                              ctrl.dispose();
+                            });
+                          },
+                        ),
+                      ],
+                    ],
+                  ),
+                );
+              }),
+              const SizedBox(height: 4),
+              InkWell(
+                onTap: () {
+                  setState(() {
+                    _premios.add(TextEditingController(text: '${_premios.length + 1}° Premio'));
+                  });
+                },
+                borderRadius: BorderRadius.circular(6),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: c.tintaSuave.withValues(alpha: 0.4)),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.add, size: 18, color: c.tinta),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Agregar otro premio',
+                        style: t.etiqueta.copyWith(color: c.tinta, fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             ],
             const SizedBox(height: 28),
             MitiBoton(texto: 'Crear la campaña', cargando: _guardando, onTap: _crear),

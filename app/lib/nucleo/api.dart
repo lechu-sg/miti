@@ -60,7 +60,9 @@ class ApiMiti {
     return switch (metodo) {
       'GET' => _http.get(url, headers: encabezados),
       'POST' => _http.post(url, headers: encabezados, body: datos),
+      'PUT' => _http.put(url, headers: encabezados, body: datos),
       'PATCH' => _http.patch(url, headers: encabezados, body: datos),
+      'DELETE' => _http.delete(url, headers: encabezados, body: datos),
       _ => throw ArgumentError('método desconocido: $metodo'),
     };
   }
@@ -349,23 +351,50 @@ class ApiMiti {
 
   // --- Sorteo (§3.3) ---
 
-  Future<Map<String, dynamic>?> sorteo(String campanaId) async {
-    final res = await pedir('GET', '/campanas/$campanaId/sorteo');
-    if (res == null) return null;
-    return res as Map<String, dynamic>;
+  Future<List<dynamic>> sorteo(String campanaId) async {
+    try {
+      final res = await pedir('GET', '/campanas/$campanaId/sorteo');
+      if (res == null) return [];
+      if (res is List) return res;
+      if (res is Map<String, dynamic>) return [res];
+      return [];
+    } on ErrorApi catch (e) {
+      if (e.codigo == 404) return [];
+      rethrow;
+    }
   }
 
-  Future<Map<String, dynamic>> registrarSorteo(
+  Future<List<dynamic>> registrarSorteo(
     String campanaId, {
-    required int numeroSorteado,
-    required String premio,
+    List<Map<String, dynamic>>? items,
+    int? numeroSorteado,
+    String? premio,
     String? reglaNoVendido,
-  }) async =>
-      (await pedir('POST', '/campanas/$campanaId/sorteo', cuerpo: {
-        'numero_sorteado': numeroSorteado,
-        'premio': premio,
-        if (reglaNoVendido != null) 'regla_no_vendido': reglaNoVendido,
-      })) as Map<String, dynamic>;
+  }) async {
+    final Map<String, dynamic> cuerpo = {};
+    if (items != null) {
+      cuerpo['items'] = items;
+    } else if (numeroSorteado != null) {
+      cuerpo['numero_sorteado'] = numeroSorteado;
+      cuerpo['premio'] = premio ?? 'Primer Premio';
+    }
+    if (reglaNoVendido != null) {
+      cuerpo['regla_no_vendido'] = reglaNoVendido;
+    }
+    final res = await pedir('POST', '/campanas/$campanaId/sorteo', cuerpo: cuerpo);
+    if (res is List) return res;
+    if (res is Map<String, dynamic>) return [res];
+    return [];
+  }
+
+  Future<List<String>> editarPremios(String campanaId, List<String> premios) async {
+    final res = await pedir('PUT', '/campanas/$campanaId/premios', cuerpo: {
+      'premios': premios,
+    });
+    if (res is List) return res.map((e) => e.toString()).toList();
+    return premios;
+  }
+
 
   // --- Exportación a Excel y PDF (§3.10) ---
 
