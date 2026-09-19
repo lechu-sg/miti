@@ -18,7 +18,7 @@ from sqlalchemy.orm import selectinload
 from ..db import sesion
 from ..esquemas import CrearGastoEntrada, GastoSalida
 from ..modelos import Caja, Gasto, Historial, Movimiento, SyncLog, Usuario
-from .acceso import Contexto, contexto_activo
+from ..seguridad import Contexto, contexto_activo
 
 ruteador = APIRouter(tags=["gastos"])
 

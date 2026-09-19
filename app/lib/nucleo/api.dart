@@ -297,6 +297,27 @@ class ApiMiti {
           if (comprobanteId != null) 'comprobante_id': comprobanteId,
         },
       )) as Map<String, dynamic>;
+
+  // --- Gastos (§3.7) ---
+
+  Future<List<dynamic>> gastos(String campanaId) async =>
+      (await pedir('GET', '/campanas/$campanaId/gastos')) as List<dynamic>;
+
+  Future<Map<String, dynamic>> crearGasto(
+    String campanaId, {
+    required String descripcion,
+    required int importe,
+    required String origen,
+    String? cajaId,
+    String? comprobanteId,
+  }) async =>
+      (await pedir('POST', '/campanas/$campanaId/gastos', cuerpo: {
+        'descripcion': descripcion,
+        'importe': importe,
+        'origen': origen,
+        if (cajaId != null) 'caja_id': cajaId,
+        if (comprobanteId != null) 'comprobante_id': comprobanteId,
+      })) as Map<String, dynamic>;
 }
 
 /// Un error que vino de la API, ya traducido a algo que se le puede mostrar a la gente.

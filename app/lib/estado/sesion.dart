@@ -89,4 +89,10 @@ final liquidacionProvider =
   return ref.watch(apiProvider).obtenerLiquidacion(id);
 });
 
+final gastosProvider =
+    FutureProvider.autoDispose.family<List<dynamic>, String>((ref, id) async {
+  return ref.watch(apiProvider).gastos(id);
+});
+
+
 
