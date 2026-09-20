@@ -40,7 +40,7 @@ def llamar(metodo, ruta, token=None, cuerpo=None):
         with urllib.request.urlopen(pedido, timeout=30) as r:
             texto = r.read().decode("utf-8", errors="replace")
             content_type = r.headers.get("content-type", "")
-            return r.status, (json.loads(texto) if "json" in content_type else texto)
+            return r.status, (json.loads(texto) if "json" in content_type and texto.strip() else texto)
     except urllib.error.HTTPError as e:
         texto = e.read().decode("utf-8", errors="replace")
         try:
@@ -59,8 +59,8 @@ def codigo_de(email):
 
 
 def login(email, nombre):
-    llamar("POST", "/acceso/solicitar", cuerpo={"email": email})
-    time.sleep(1)
+    llamar("POST", "/acceso/codigo", cuerpo={"email": email})
+    time.sleep(0.5)
     cod = codigo_de(email)
     st, resp = llamar("POST", "/acceso/verificar", cuerpo={
         "email": email, "codigo": cod, "nombre": nombre, "nacimiento": "1995-05-15",
@@ -98,12 +98,13 @@ cid = camp["id"]
 probar("Crear campaña rifa (201)", 201, st)
 
 # Activar campaña
-llamar("POST", f"/campanas/{cid}/estado", token=t1, cuerpo={"nuevo_estado": "activa"})
+llamar("PATCH", f"/campanas/{cid}/estado", token=t1, cuerpo={"estado": "activa"})
 
-# Invitar a U2
-st, _ = llamar("POST", f"/campanas/{cid}/invitar", token=t1, cuerpo={"email": U2})
-# Aceptar invitación
-llamar("POST", f"/campanas/{cid}/invitacion", token=t2, cuerpo={"respuesta": "acepto"})
+# Invitar a U2 y aceptar
+st_inv, _ = llamar("POST", f"/campanas/{cid}/invitaciones", token=t1, cuerpo={"email": U2})
+st_acep, _ = llamar("POST", f"/campanas/{cid}/invitacion", token=t2, cuerpo={"respuesta": "acepto"})
+probar("Invitar a U2 (201)", 201, st_inv)
+probar("U2 acepta invitación (200)", 200, st_acep)
 
 # 4. Muro de avisos: Publicar aviso como admin
 st, av1 = llamar("POST", f"/campanas/{cid}/avisos", token=t1, cuerpo={
@@ -136,16 +137,14 @@ probar("El primer aviso es el fijado", True, lista_avisos[0]["fijado"])
 # 5. Ventas: una al contado (U1) y una adeudada (U2)
 st, v1 = llamar("POST", f"/campanas/{cid}/ventas", token=t1, cuerpo={
     "numeros": [1, 2, 3],
-    "comprador_nombre": "Carlos Gómez",
-    "comprador_telefono": "+5491100001111",
+    "comprador": {"nombre": "Carlos Gómez", "telefono": "+5491100001111"},
     "destino_cobro": "efectivo",
 })
 probar("Venta 1 al contado por U1 (201)", 201, st)
 
 st, v2 = llamar("POST", f"/campanas/{cid}/ventas", token=t2, cuerpo={
     "numeros": [10, 11],
-    "comprador_nombre": "Lucía Deudora",
-    "comprador_telefono": "+5491122223333",
+    "comprador": {"nombre": "Lucía Deudora", "telefono": "+5491122223333"},
     "destino_cobro": "adeudado",
 })
 probar("Venta 2 adeudada por U2 (201)", 201, st)

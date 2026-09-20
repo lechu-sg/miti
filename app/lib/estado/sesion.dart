@@ -94,5 +94,20 @@ final gastosProvider =
   return ref.watch(apiProvider).gastos(id);
 });
 
+final avisosProvider =
+    FutureProvider.autoDispose.family<List<Map<String, dynamic>>, String>((ref, id) async {
+  return ref.watch(apiProvider).avisos(id);
+});
+
+final rankingProvider =
+    FutureProvider.autoDispose.family<Map<String, dynamic>, String>((ref, id) async {
+  return ref.watch(apiProvider).ranking(id);
+});
+
+final ventasAdeudadasProvider =
+    FutureProvider.autoDispose.family<List<Map<String, dynamic>>, String>((ref, id) async {
+  return ref.watch(apiProvider).ventasAdeudadas(id);
+});
+
 
 

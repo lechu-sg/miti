@@ -416,6 +416,64 @@ class ApiMiti {
 
   Future<Uint8List> descargarPdf(String campanaId) =>
       descargarBytes('/campanas/$campanaId/exportar/pdf');
+
+  // --- Avisos de campaña (§7.9) ---
+
+  Future<List<Map<String, dynamic>>> avisos(String campanaId) async {
+    final res = await pedir('GET', '/campanas/$campanaId/avisos');
+    if (res is List) {
+      return res.whereType<Map>().map((m) => m.cast<String, dynamic>()).toList();
+    }
+    return [];
+  }
+
+  Future<Map<String, dynamic>> crearAviso(
+    String campanaId, {
+    required String mensaje,
+    bool fijado = false,
+  }) async {
+    final res = await pedir('POST', '/campanas/$campanaId/avisos', cuerpo: {
+      'mensaje': mensaje,
+      'fijado': fijado,
+    });
+    return (res as Map).cast<String, dynamic>();
+  }
+
+  Future<void> eliminarAviso(String campanaId, String avisoId) async {
+    await pedir('DELETE', '/campanas/$campanaId/avisos/$avisoId');
+  }
+
+  // --- Ranking de ventas (§7.7) ---
+
+  Future<Map<String, dynamic>> ranking(String campanaId) async {
+    final res = await pedir('GET', '/campanas/$campanaId/ranking');
+    return (res as Map).cast<String, dynamic>();
+  }
+
+  // --- Ventas adeudadas / cobros pendientes (§7.4) ---
+
+  Future<List<Map<String, dynamic>>> ventasAdeudadas(String campanaId) async {
+    final res = await pedir('GET', '/campanas/$campanaId/ventas?adeudadas=true');
+    if (res is List) {
+      return res.whereType<Map>().map((m) => m.cast<String, dynamic>()).toList();
+    }
+    return [];
+  }
+
+  // --- Registro de token FCM (§5.7) ---
+
+  Future<Map<String, dynamic>> registrarTokenDispositivo({
+    required String fcmToken,
+    String plataforma = 'android',
+    String? versionApp,
+  }) async {
+    final res = await pedir('POST', '/dispositivos/token', cuerpo: {
+      'fcm_token': fcmToken,
+      'plataforma': plataforma,
+      if (versionApp != null) 'version_app': versionApp,
+    });
+    return (res as Map).cast<String, dynamic>();
+  }
 }
 
 /// Un error que vino de la API, ya traducido a algo que se le puede mostrar a la gente.

@@ -205,16 +205,37 @@ Antes de publicar una versión nueva, subí `version:` en `app/pubspec.yaml`. La
   - **Registrar Gasto (Blindaje de saldos):** En `hoja_gasto.dart` y `campana.dart`, tipado defensivo de `cajasRecaudacion` y saldos numéricos para evitar caídas runtime por formato de datos.
   - **Desglose de Productos Vendidos (Cuadro blanco corregido):** En `_FilaDesgloseProducto` de `campana.dart`, mapeo seguro a las claves `cantidad`/`cantidad_vendida` y `total`/`recaudado` con conversión `num.toInt()`, evitando caída por `null as int` en el listado de productos de campaña.
   - **Calidad de código:** `flutter analyze` 0 issues, `flutter test` 10/10 en verde.
-  - **Última APK publicada:** `https://miti.sole.ar/descargas/miti-0.6.2.apk` (también disponible en `https://miti.sole.ar/descargas/miti.apk`, SHA256 `A60BADB8D32E391D0DEA937B74F3AF3C823A5A155F33CA16C0CA600784F97C47`).
+- **Fase 6 (Recordatorios a deudores, Ranking, Muro de avisos y Push FCM): HECHO (v0.7.0).**
+  - **Base de datos (Alembic 0010):**
+    - Tabla `avisos` (`id PK, campana_id FK, autor_id FK, mensaje, fijado, creado, actualizado`).
+    - Tabla `dispositivos` (`id PK, usuario_id FK, token_fcm, plataforma, modelo, app_version, ultimo_acceso`).
+  - **Backend FastAPI:**
+    - `GET, POST, DELETE /campanas/{id}/avisos`: Muro de avisos de campaña, con opción de fijado (`fijado=true`) y eliminación por autor o admin.
+    - `GET /campanas/{id}/ranking`: Tabla de clasificación de ventas por participante (top ventas por cantidad de números o productos y total recaudado).
+    - `GET /campanas/{id}/ventas?adeudadas=true`: Filtro directo para ventas con saldo pendiente de pago.
+    - `POST /dispositivos/token`: Registro y rotación de tokens FCM por usuario y plataforma.
+    - Módulo `push.py`: Despacho resiliente de notificaciones push con fallback a log si FCM no está configurado.
+    - Pruebas de API contra `miti.sole.ar`: `api/pruebas/prueba_fase6.py` con **26/26 pruebas en verde**.
+  - **App Flutter (v0.7.0+14):**
+    - `app/lib/nucleo/recordatorio_deuda.dart`: Generador de mensajes personalizados de deuda con monto, alias de campaña, números/productos y enlace directo para enviar por WhatsApp (`SharePlus`).
+    - `app/lib/pantallas/hoja_ranking.dart`: Tablero de clasificación con estética Talonario, podio destacado (🥇 Oro, 🥈 Plata, 🥉 Bronce) y barras proporcionales para el resto del equipo.
+    - `app/lib/pantallas/muro_avisos.dart`: Canal de comunicados para integrantes, badges de fijado, diálogo de publicación para admin y eliminación.
+    - `app/lib/pantallas/campana.dart`:
+      - Tarjeta destacada `_TarjetaAvisoDestacado` en el inicio de campaña cuando hay comunicados vigentes.
+      - Botones de acceso rápido "Ranking del equipo" y "Muro de avisos (N)".
+      - Banner de alerta de cobros pendientes con listado de deudores y botón "RECORDAR" directo para enviar mensaje de WhatsApp.
+    - Calidad y pruebas:
+      - `flutter analyze`: 0 issues.
+      - `flutter test`: 13/13 en verde (incluye `test/fase6_test.dart`).
+  - **Última APK publicada:** `https://miti.sole.ar/descargas/miti-0.7.0.apk` (también en `https://miti.sole.ar/descargas/miti.apk`, SHA256 `b64a880f310efde40f6ea643384da9b757076a9f645e92d59a1496e85f7ac09b`).
 
 ## 7. Pasos a seguir, en orden
 
-1. **El usuario prueba la APK 0.6.2 en el celular**:
-   - Crear o editar premios en rifa y comprobar que el cursor se posiciona inmediatamente en el nuevo campo listo para escribir.
-   - Entrar a una campaña de productos y confirmar que el desglose de productos vendidos se ve correctamente sin ningún cuadro blanco.
-   - Registrar un gasto desde la campaña y verificar que la hoja abra sin pantallas en blanco y permita registrar egreso de bolsillo o caja.
-   - Entrar a "Sorteo y ganadores" en una rifa y verificar que el formulario cargue fluido y sin pantallas en blanco.
-2. **Siguientes funciones del backlog**:
-   - Notificaciones push con Firebase Cloud Messaging (FCM).
+1. **El usuario prueba la APK 0.7.0 en el celular**:
+   - Ingresar a una campaña con ventas adeudadas y tocar "RECORDAR" para verificar el envío de mensaje por WhatsApp con los datos de cuenta y saldo.
+   - Abrir el "Ranking del equipo" y confirmar la visualización del podio 🥇🥈🥉 y las barras de progreso.
+   - Entrar al "Muro de avisos", publicar un comunicado fijado como admin y verificar que se destaque en la pantalla principal de la campaña.
+2. **Backlog y pulido final**:
+   - Carga de credenciales reales de Firebase en `/srv/miti/secrets/firebase-sa.json` si se desea activar el envío en vivo de push notifications.
 
 

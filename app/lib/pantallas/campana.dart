@@ -19,8 +19,11 @@ import 'hoja_conflictos.dart';
 import 'hoja_entrega.dart';
 import 'hoja_gasto.dart';
 import 'hoja_premios.dart';
+import 'hoja_ranking.dart';
 import 'liquidacion.dart';
+import 'muro_avisos.dart';
 import 'venta_productos.dart';
+import '../nucleo/recordatorio_deuda.dart';
 import '../nucleo/sincronizador.dart';
 
 /// La campaña por dentro: cuánto se juntó, dónde está la plata y quiénes son.
@@ -38,6 +41,7 @@ class PantallaCampana extends ConsumerWidget {
     final ventasAsync = ref.watch(ventasProvider(campanaId));
     final movsAsync = ref.watch(movimientosProvider(campanaId));
     final gastosAsync = ref.watch(gastosProvider(campanaId));
+    final avisosAsync = ref.watch(avisosProvider(campanaId));
     final sesionUsuario = ref.watch(sesionProvider).valueOrNull;
     final sincro = ref.watch(sincroProvider(campanaId));
 
@@ -66,6 +70,9 @@ class PantallaCampana extends ConsumerWidget {
             final estaActiva = campana['estado'] == 'activa';
             final estaCerrada = campana['estado'] == 'cerrada' || campana['estado'] == 'sorteada';
             final estaLiquidada = campana['estado'] == 'liquidada';
+
+            final principalCaja = cajas.where((c) => c['tipo'] == 'principal').firstOrNull;
+            final aliasPrincipal = principalCaja?['alias'] as String?;
 
             final rec = recAsync.valueOrNull;
             final cobrado = rec?['cobrado'] as int? ?? 0;
@@ -104,6 +111,8 @@ class PantallaCampana extends ConsumerWidget {
                 ref.invalidate(ventasProvider(campanaId));
                 ref.invalidate(movimientosProvider(campanaId));
                 ref.invalidate(gastosProvider(campanaId));
+                ref.invalidate(avisosProvider(campanaId));
+                ref.invalidate(rankingProvider(campanaId));
                 if (esRifa) ref.invalidate(numerosProvider(campanaId));
                 await ref.read(sincroProvider(campanaId).notifier).sincronizar();
               },
@@ -257,6 +266,33 @@ class PantallaCampana extends ConsumerWidget {
                     ),
                     const SizedBox(height: 14),
                   ],
+
+                  // Muro de avisos: tarjeta destacada (§7.9)
+                  Builder(
+                    builder: (ctx) {
+                      final avisos = avisosAsync.valueOrNull ?? [];
+                      if (avisos.isEmpty) return const SizedBox.shrink();
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          _TarjetaAvisoDestacado(
+                            aviso: avisos.first,
+                            totalAvisos: avisos.length,
+                            onTap: () => Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => PantallaMuroAvisos(
+                                  campanaId: campanaId,
+                                  campanaNombre: campana['nombre'] as String,
+                                  esAdmin: esAdmin,
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 14),
+                        ],
+                      );
+                    },
+                  ),
 
                   // Ticket de recaudación con datos reales
                   MitiTicket(
@@ -511,6 +547,37 @@ class PantallaCampana extends ConsumerWidget {
                       secundario: true,
                       onTap: () => _mostrarMenuExportar(context, ref, campana['nombre'] as String),
                     ),
+                    const SizedBox(height: 10),
+                    MitiBoton(
+                      texto: 'Ranking del equipo',
+                      icono: Icons.military_tech_outlined,
+                      secundario: true,
+                      onTap: () => mostrarHojaRanking(
+                        context,
+                        campanaId: campanaId,
+                        campanaNombre: campana['nombre'] as String,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Builder(
+                      builder: (ctx) {
+                        final cantAvisos = (avisosAsync.valueOrNull ?? []).length;
+                        return MitiBoton(
+                          texto: cantAvisos > 0 ? 'Muro de avisos ($cantAvisos)' : 'Muro de avisos',
+                          icono: Icons.campaign_outlined,
+                          secundario: true,
+                          onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => PantallaMuroAvisos(
+                                campanaId: campanaId,
+                                campanaNombre: campana['nombre'] as String,
+                                esAdmin: esAdmin,
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
                     const SizedBox(height: 14),
                   ],
 
@@ -591,6 +658,41 @@ class PantallaCampana extends ConsumerWidget {
                     ),
                   ],
 
+                  // Cobros pendientes / Recordatorios (§7.4)
+                  if (faltaCobrar > 0) ...[
+                    const SizedBox(height: 20),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: c.sello.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: c.sello.withValues(alpha: 0.3)),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.hourglass_top_outlined, color: c.selloTexto, size: 20),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'COBROS PENDIENTES: ${plata(faltaCobrar)}',
+                                  style: t.etiqueta.copyWith(color: c.selloTexto, fontWeight: FontWeight.bold),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  'Tocá "RECORDAR" en las ventas adeudadas para enviar el mensaje por WhatsApp.',
+                                  style: t.pie.copyWith(color: c.tintaSuave),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+
                   // Ventas recientes
                   if (ventas.isNotEmpty) ...[
                     const SizedBox(height: 26),
@@ -612,6 +714,7 @@ class PantallaCampana extends ConsumerWidget {
                         campanaId: campanaId,
                         campanaNombre: campana['nombre'] as String,
                         esRifa: esRifa,
+                        alias: aliasPrincipal,
                       ),
                   ],
 
@@ -1177,12 +1280,14 @@ class _FilaVenta extends ConsumerWidget {
     required this.campanaId,
     required this.campanaNombre,
     required this.esRifa,
+    this.alias,
   });
 
   final Map<String, dynamic> venta;
   final String campanaId;
   final String campanaNombre;
   final bool esRifa;
+  final String? alias;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -1243,10 +1348,12 @@ class _FilaVenta extends ConsumerWidget {
                   if (esRifa) ref.invalidate(numerosProvider(campanaId));
                   if (context.mounted) {
                     Navigator.of(context).pop();
-                    mostrarAviso(context, 'Solicitud de anulación enviada. Requiere aprobación.');
+                    mostrarAviso(context, 'Solicitud de anulación enviada.');
                   }
-                } on ErrorApi catch (e) {
-                  if (context.mounted) mostrarAviso(context, e.mensaje, error: true);
+                } catch (e) {
+                  if (context.mounted) {
+                    mostrarAviso(context, 'No se pudo anular la venta.', error: true);
+                  }
                 }
               },
             ),
@@ -1308,6 +1415,40 @@ class _FilaVenta extends ConsumerWidget {
                             ),
                           ),
                         ),
+                        if (!estaPagado) ...[
+                          const SizedBox(width: 6),
+                          InkWell(
+                            onTap: () => enviarRecordatorioDeuda(
+                              context,
+                              venta: venta,
+                              campanaNombre: campanaNombre,
+                              alias: alias,
+                            ),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF25D366).withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(4),
+                                border: Border.all(color: const Color(0xFF25D366)),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.send_rounded, size: 9, color: Color(0xFF1E7E34)),
+                                  const SizedBox(width: 3),
+                                  Text(
+                                    'RECORDAR',
+                                    style: t.pie.copyWith(
+                                      color: const Color(0xFF1E7E34),
+                                      fontWeight: FontWeight.w800,
+                                      fontSize: 9,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
                         // Chip de Entrega (en productos)
                         if (!esRifa) ...[
                           const SizedBox(width: 6),
@@ -1674,7 +1815,7 @@ class _FilaGasto extends StatelessWidget {
             plata(importe),
             style: t.importe.copyWith(
               color: c.tinta,
-              fontSize: 18,
+              fontSize: 18.0,
               decoration: esRechazado ? TextDecoration.lineThrough : null,
             ),
           ),
@@ -1683,3 +1824,80 @@ class _FilaGasto extends StatelessWidget {
     );
   }
 }
+
+class _TarjetaAvisoDestacado extends StatelessWidget {
+  const _TarjetaAvisoDestacado({
+    required this.aviso,
+    required this.totalAvisos,
+    required this.onTap,
+  });
+
+  final Map<String, dynamic> aviso;
+  final int totalAvisos;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.color;
+    final t = context.texto;
+    final mensaje = aviso['mensaje'] as String? ?? '';
+    final autor = aviso['autor_nombre'] as String? ?? 'Administración';
+    final fijado = aviso['fijado'] as bool? ?? false;
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: fijado ? c.mostaza.withValues(alpha: 0.12) : c.papelHundido,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: fijado ? c.mostaza : c.troquel,
+            width: fijado ? 1.5 : 1.0,
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  fijado ? Icons.push_pin : Icons.campaign_outlined,
+                  size: 16,
+                  color: fijado ? c.mostaza : c.selloTexto,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  fijado ? 'AVISO FIJADO · $autor' : 'AVISO RECIENTE · $autor',
+                  style: t.pie.copyWith(
+                    fontWeight: FontWeight.w800,
+                    color: fijado ? c.tinta : c.selloTexto,
+                    fontSize: 10,
+                  ),
+                ),
+                const Spacer(),
+                Text(
+                  'Ver muro ($totalAvisos) →',
+                  style: t.pie.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: c.tinta,
+                    fontSize: 10,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Text(
+              mensaje,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: t.cuerpo.copyWith(color: c.tinta, fontSize: 13, height: 1.25),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
