@@ -5,14 +5,14 @@ import secrets
 from datetime import UTC, date, datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
-from sqlalchemy import func, select, update
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from .. import correo, cripto
 from ..config import ajustes
 from ..db import sesion
 from ..esquemas import CambiarPerfil, PedirCodigo, Perfil, Refrescar, Tokens, Verificar
-from ..modelos import CodigoAcceso, Historial, Sesion, Usuario
+from ..modelos import CodigoAcceso, Dispositivo, Historial, Sesion, Usuario
 from ..seguridad import crear_refresco, crear_token, usuario_actual
 
 registro = logging.getLogger("miti.acceso")
@@ -237,3 +237,40 @@ async def cambiar_perfil(
     await s.merge(usuario)
     await s.commit()
     return await yo(usuario)
+
+
+@ruteador.delete("/yo", status_code=status.HTTP_204_NO_CONTENT)
+async def eliminar_cuenta(
+    usuario: Usuario = Depends(usuario_actual),
+    s: AsyncSession = Depends(sesion),
+) -> Response:
+    """Baja de cuenta y derecho al olvido (Ley 25.326).
+    
+    Anonimiza datos personales, revoca todas las sesiones y da de baja al usuario.
+    """
+    ahora = datetime.now(UTC)
+    usuario.baja = ahora
+    usuario.nombre = "Usuario eliminado"
+
+    # Generar un hash y payload aleatorio para disociar el email real
+    id_random = secrets.token_hex(16)
+    email_tombstone = f"eliminado_{id_random}@miti.invalid"
+    usuario.email_cifrado = cripto.cifrar(email_tombstone)
+    usuario.email_huella = cripto.huella(email_tombstone)
+
+    # Revocar todas las sesiones
+    await s.execute(
+        update(Sesion)
+        .where(Sesion.usuario_id == usuario.id, Sesion.revocada.is_(None))
+        .values(revocada=ahora)
+    )
+
+    # Eliminar dispositivos FCM
+    await s.execute(
+        delete(Dispositivo).where(Dispositivo.usuario_id == usuario.id)
+    )
+
+    await s.merge(usuario)
+    await s.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+

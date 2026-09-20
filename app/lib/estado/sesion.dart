@@ -32,8 +32,27 @@ class Sesion extends AsyncNotifier<Map<String, dynamic>?> {
     state = AsyncData(await _api.yo());
   }
 
+  Future<void> cambiarNombre(String nuevoNombre) async {
+    final perfil = await _api.cambiarNombre(nuevoNombre);
+    state = AsyncData(perfil);
+  }
+
   Future<void> salir() async {
     await _api.salir();
+    ref.invalidate(campanasProvider);
+    ref.invalidate(invitacionesProvider);
+    state = const AsyncData(null);
+  }
+
+  Future<void> salirDeTodos() async {
+    await _api.salirDeTodos();
+    ref.invalidate(campanasProvider);
+    ref.invalidate(invitacionesProvider);
+    state = const AsyncData(null);
+  }
+
+  Future<void> eliminarCuenta() async {
+    await _api.eliminarCuenta();
     ref.invalidate(campanasProvider);
     ref.invalidate(invitacionesProvider);
     state = const AsyncData(null);

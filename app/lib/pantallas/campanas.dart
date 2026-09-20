@@ -8,6 +8,7 @@ import '../nucleo/formato.dart';
 import '../nucleo/tema.dart';
 import 'campana.dart';
 import 'nueva_campana.dart';
+import 'perfil.dart';
 
 class PantallaCampanas extends ConsumerWidget {
   const PantallaCampanas({super.key});
@@ -45,13 +46,21 @@ class PantallaCampanas extends ConsumerWidget {
                           ],
                         ),
                       ),
-                      IconButton(
-                        tooltip: 'Salir de la cuenta',
-                        onPressed: () async {
-                          final salir = await _confirmarSalida(context);
-                          if (salir == true) await ref.read(sesionProvider.notifier).salir();
-                        },
-                        icon: Icon(Icons.logout, color: c.tinta),
+                      Tooltip(
+                        message: 'Mi perfil y configuración',
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(20),
+                          onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute(builder: (_) => const PantallaPerfil()),
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.all(4),
+                            child: MitiIniciales(
+                              iniciales(perfil?['nombre'] as String? ?? 'U'),
+                              medida: 36,
+                            ),
+                          ),
+                        ),
                       ),
                     ],
                   ),
@@ -140,24 +149,6 @@ class PantallaCampanas extends ConsumerWidget {
     );
   }
 
-  Future<bool?> _confirmarSalida(BuildContext context) {
-    return showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: ctx.color.hoja,
-        title: Text('¿Salir de la cuenta?', style: ctx.texto.seccion.copyWith(color: ctx.color.tinta)),
-        content: Text('Vas a tener que pedir un código nuevo para volver a entrar.',
-            style: ctx.texto.cuerpo.copyWith(color: ctx.color.tintaSuave)),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Quedarme')),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: Text('Salir', style: TextStyle(color: ctx.color.selloTexto)),
-          ),
-        ],
-      ),
-    );
-  }
 
   Future<void> _nueva(BuildContext context, WidgetRef ref) async {
     final creada = await Navigator.of(context).push<Map<String, dynamic>>(

@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
+import 'estado/ajustes.dart';
 import 'estado/sesion.dart';
 import 'nucleo/tema.dart';
 import 'pantallas/campanas.dart';
@@ -14,16 +15,27 @@ Future<void> main() async {
   runApp(const ProviderScope(child: AppMiti()));
 }
 
-class AppMiti extends StatelessWidget {
+class AppMiti extends ConsumerWidget {
   const AppMiti({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final modo = ref.watch(modoTemaProvider);
+    // Activa la protección de pantalla configurada
+    ref.watch(proteccionPantallaProvider);
+
+    final themeMode = switch (modo) {
+      ModoTema.sistema => ThemeMode.system,
+      ModoTema.claro => ThemeMode.light,
+      ModoTema.oscuro => ThemeMode.dark,
+    };
+
     return MaterialApp(
       title: 'Miti',
       debugShowCheckedModeBanner: false,
       theme: construirTema(MitiColores.claro, Brightness.light),
       darkTheme: construirTema(MitiColores.oscuro, Brightness.dark),
+      themeMode: themeMode,
       home: const _Puerta(),
     );
   }

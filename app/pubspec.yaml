@@ -1,7 +1,7 @@
 name: miti
 description: "Miti - campañas de recaudación"
 publish_to: "none"
-version: 0.7.0+14
+version: 0.8.0+15
 
 environment:
   sdk: ^3.13.0

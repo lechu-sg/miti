@@ -229,13 +229,35 @@ Antes de publicar una versión nueva, subí `version:` en `app/pubspec.yaml`. La
       - `flutter test`: 13/13 en verde (incluye `test/fase6_test.dart`).
   - **Última APK publicada:** `https://miti.sole.ar/descargas/miti-0.7.0.apk` (también en `https://miti.sole.ar/descargas/miti.apk`, SHA256 `b64a880f310efde40f6ea643384da9b757076a9f645e92d59a1496e85f7ac09b`).
 
+- **Fase 7 · Parte 1 (Perfil, Selector de Tema, FLAG_SECURE, Legales y Baja de Cuenta): HECHO (v0.8.0).**
+  - **Backend FastAPI:**
+    - `DELETE /yo`: Baja de cuenta definitiva y derecho al olvido (Ley 25.326). Anonimiza irreversiblemente datos personales (`nombre = "Usuario eliminado"`, email disociado con tombstone hash), revoca todas las sesiones activas en la tabla `sesiones` y purga dispositivos FCM. Bloquea futuros accesos (401).
+    - `PATCH /yo`: Permite actualizar el nombre de usuario desde la app.
+    - `POST /acceso/salir-de-todos`: Cierre masivo de sesiones en todos los dispositivos.
+    - Suite de prueba de API: `api/pruebas/prueba_fase7_perfil.py` con **12/12 pruebas en verde**.
+  - **Plataforma Android Nativa:**
+    - `app/android/app/src/main/kotlin/ar/sole/miti/MainActivity.kt`: Canal nativo `ar.sole.miti/seguridad` con método `setSecure(activa)` para activar o remover `WindowManager.LayoutParams.FLAG_SECURE`.
+  - **App Flutter (v0.8.0+15):**
+    - `app/lib/estado/ajustes.dart`: Providers `modoTemaProvider` (`sistema`, `claro`, `oscuro`) y `proteccionPantallaProvider` con persistencia en `FlutterSecureStorage`.
+    - `app/lib/main.dart`: Configuración reactiva de `themeMode` en `MaterialApp` e inicialización de protección de pantalla.
+    - `app/lib/pantallas/perfil.dart`: Pantalla completa de perfil con tarjeta de usuario, edición de nombre, copia rápida de email para invitaciones, selector de tema con chips Talonario, switch de `FLAG_SECURE`, enlaces a legales y zona de cierre/baja de cuenta con doble confirmación.
+    - `app/lib/pantallas/legales.dart`: Términos y Condiciones (Miti como herramienta de registro), Política de Privacidad (Ley 25.326) y Botón de arrepentimiento (Res. SCI 424/2020).
+    - `app/lib/pantallas/campanas.dart`: Acceso al perfil desde el avatar del usuario en la barra superior.
+    - Pruebas y calidad:
+      - `flutter analyze`: 0 issues.
+      - `flutter test`: 17/17 pruebas en verde (incluye `test/perfil_test.dart`).
+  - **Última APK publicada:** `https://miti.sole.ar/descargas/miti-0.8.0.apk` (también en `https://miti.sole.ar/descargas/miti.apk`).
+
 ## 7. Pasos a seguir, en orden
 
-1. **El usuario prueba la APK 0.7.0 en el celular**:
-   - Ingresar a una campaña con ventas adeudadas y tocar "RECORDAR" para verificar el envío de mensaje por WhatsApp con los datos de cuenta y saldo.
-   - Abrir el "Ranking del equipo" y confirmar la visualización del podio 🥇🥈🥉 y las barras de progreso.
-   - Entrar al "Muro de avisos", publicar un comunicado fijado como admin y verificar que se destaque en la pantalla principal de la campaña.
-2. **Backlog y pulido final**:
-   - Carga de credenciales reales de Firebase en `/srv/miti/secrets/firebase-sa.json` si se desea activar el envío en vivo de push notifications.
+1. **El usuario prueba la APK 0.8.0 en el celular**:
+   - Abrir "Mi perfil" tocando el avatar en la esquina superior derecha del inicio.
+   - Probar el cambio de tema entre **Automático**, **Claro** y **Oscuro** comprobando el cambio visual inmediato en toda la app.
+   - Probar la opción de "Protección de pantalla" para verificar el bloqueo de capturas en Android.
+   - Revisar las pantallas de Términos y Privacidad.
+2. **Siguientes pasos de la Fase 7**:
+   - Control de límites del plan gratuito (5 integrantes, 100 números o 20 ventas).
+   - Integración de MercadoPago Checkout Pro para mejoras de campaña.
+   - Panel web de administración en `/admin`.
 
 

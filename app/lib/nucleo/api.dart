@@ -134,6 +134,23 @@ class ApiMiti {
 
   Future<Map<String, dynamic>> yo() async => (await pedir('GET', '/yo')) as Map<String, dynamic>;
 
+  Future<Map<String, dynamic>> cambiarNombre(String nuevoNombre) async =>
+      (await pedir('PATCH', '/yo', cuerpo: {'nombre': nuevoNombre})) as Map<String, dynamic>;
+
+  Future<void> salirDeTodos() async {
+    try {
+      await pedir('POST', '/acceso/salir-de-todos');
+    } catch (_) {
+      // si el servidor no contesta, igual borramos la sesión del celular
+    }
+    await olvidar();
+  }
+
+  Future<void> eliminarCuenta() async {
+    await pedir('DELETE', '/yo');
+    await olvidar();
+  }
+
   // --- campañas ---
 
   Future<List<dynamic>> campanas() async => (await pedir('GET', '/campanas')) as List<dynamic>;
