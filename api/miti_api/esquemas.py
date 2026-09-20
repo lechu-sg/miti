@@ -501,4 +501,54 @@ class SorteoSalida(BaseModel):
     creado: datetime
 
 
+# Avisos (§7.9 de DEFINICION.md)
+class NuevoAvisoEntrada(BaseModel):
+    mensaje: str = Field(min_length=1, max_length=2000)
+    fijado: bool = False
 
+
+class AvisoSalida(BaseModel):
+    model_config = {"from_attributes": True}
+
+    id: uuid.UUID
+    campana_id: uuid.UUID
+    autor_id: uuid.UUID
+    autor_nombre: str | None = None
+    mensaje: str
+    fijado: bool
+    creado: datetime
+
+
+# Ranking (§7.7 de DEFINICION.md)
+class ItemRankingSalida(BaseModel):
+    posicion: int
+    vendedor_id: uuid.UUID
+    nombre: str
+    cantidad: int
+    total_vendido: int
+    total_cobrado: int
+    porcentaje: float
+
+
+class RankingSalida(BaseModel):
+    campana_id: uuid.UUID
+    tipo: str
+    items: list[ItemRankingSalida]
+
+
+# Dispositivos y Push FCM (§5.7 de DEFINICION.md)
+class RegistroDispositivoEntrada(BaseModel):
+    fcm_token: str = Field(min_length=10, max_length=255)
+    plataforma: str = Field(default="android", max_length=20)
+    version_app: str | None = Field(default=None, max_length=20)
+
+
+class DispositivoSalida(BaseModel):
+    model_config = {"from_attributes": True}
+
+    id: uuid.UUID
+    usuario_id: uuid.UUID
+    fcm_token: str
+    plataforma: str
+    version_app: str | None = None
+    actualizado: datetime

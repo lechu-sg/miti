@@ -127,6 +127,9 @@ class Campana(Base):
     sorteos: Mapped[list["Sorteo"]] = relationship(
         back_populates="campana", cascade="all, delete-orphan", order_by="Sorteo.orden", lazy="selectin"
     )
+    avisos: Mapped[list["Aviso"]] = relationship(
+        back_populates="campana", cascade="all, delete-orphan", order_by="Aviso.creado.desc()", lazy="selectin"
+    )
 
 
 class Integrante(Base):
@@ -484,5 +487,44 @@ class Sorteo(Base):
     creado: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     campana: Mapped["Campana"] = relationship(back_populates="sorteos")
+
+
+class Aviso(Base):
+    """Muro de avisos de la campaña (§7.9 de DEFINICION.md)."""
+
+    __tablename__ = "avisos"
+    __table_args__ = (Index("ix_avisos_campana_creado", "campana_id", "creado"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=_uuid)
+    campana_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("campanas.id", ondelete="CASCADE"), nullable=False
+    )
+    autor_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("usuarios.id"), nullable=False)
+    mensaje: Mapped[str] = mapped_column(Text, nullable=False)
+    fijado: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    creado: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    campana: Mapped["Campana"] = relationship(back_populates="avisos")
+    autor: Mapped["Usuario"] = relationship(lazy="selectin")
+
+
+class Dispositivo(Base):
+    """Token FCM y dispositivo de usuario para notificaciones push (§5.7 de DEFINICION.md)."""
+
+    __tablename__ = "dispositivos"
+    __table_args__ = (Index("ix_dispositivos_usuario_id", "usuario_id"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=_uuid)
+    usuario_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("usuarios.id", ondelete="CASCADE"), nullable=False
+    )
+    fcm_token: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
+    plataforma: Mapped[str] = mapped_column(String(20), nullable=False, default="android")
+    version_app: Mapped[str | None] = mapped_column(String(20))
+    actualizado: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+    usuario: Mapped["Usuario"] = relationship(lazy="selectin")
 
 

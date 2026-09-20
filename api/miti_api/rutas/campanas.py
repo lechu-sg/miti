@@ -11,6 +11,7 @@ from .. import cripto
 from ..config import ajustes
 from ..db import sesion
 from ..esquemas import (
+    AvisoSalida,
     CajaSalida,
     CambiarEstado,
     CampanaDetalle,
@@ -20,9 +21,10 @@ from ..esquemas import (
     InvitacionSalida,
     Invitar,
     NuevaCampana,
+    NuevoAvisoEntrada,
     RespuestaInvitacion,
 )
-from ..modelos import Caja, Campana, Historial, Integrante, Usuario
+from ..modelos import Aviso, Caja, Campana, Historial, Integrante, Usuario
 from ..seguridad import Contexto, contexto_activo, contexto_admin, contexto_campana, usuario_actual
 from .rifas import asegurar_numeros
 
@@ -434,4 +436,118 @@ async def editar_premios(
     )
     await s.commit()
     return datos.premios
+
+
+@ruteador.get("/campanas/{campana_id}/avisos", response_model=list[AvisoSalida])
+async def listar_avisos(
+    ctx: Contexto = Depends(contexto_activo),
+    s: AsyncSession = Depends(sesion),
+) -> list[AvisoSalida]:
+    """Lista todos los avisos del muro de la campaña (§7.9)."""
+    filas = (
+        await s.execute(
+            select(Aviso, Usuario.nombre)
+            .join(Usuario, Usuario.id == Aviso.autor_id)
+            .where(Aviso.campana_id == ctx.campana.id)
+            .order_by(Aviso.fijado.desc(), Aviso.creado.desc())
+        )
+    ).all()
+    return [
+        AvisoSalida(
+            id=a.id,
+            campana_id=a.campana_id,
+            autor_id=a.autor_id,
+            autor_nombre=nombre,
+            mensaje=a.mensaje,
+            fijado=a.fijado,
+            creado=a.creado,
+        )
+        for a, nombre in filas
+    ]
+
+
+@ruteador.post(
+    "/campanas/{campana_id}/avisos",
+    response_model=AvisoSalida,
+    status_code=status.HTTP_201_CREATED,
+)
+async def crear_aviso(
+    datos: NuevoAvisoEntrada,
+    ctx: Contexto = Depends(contexto_admin),
+    s: AsyncSession = Depends(sesion),
+) -> AvisoSalida:
+    """Publica un nuevo aviso oficial para la campaña (solo admin)."""
+    aviso = Aviso(
+        campana_id=ctx.campana.id,
+        autor_id=ctx.usuario.id,
+        mensaje=datos.mensaje.strip(),
+        fijado=datos.fijado,
+    )
+    s.add(aviso)
+    s.add(
+        Historial(
+            campana_id=ctx.campana.id,
+            actor_id=ctx.usuario.id,
+            accion="aviso_creado",
+            objeto="aviso",
+            objeto_id=aviso.id,
+            detalle={"mensaje": aviso.mensaje[:100], "fijado": aviso.fijado},
+        )
+    )
+    await s.commit()
+
+    try:
+        from ..push import enviar_notificacion_campana
+        await enviar_notificacion_campana(
+            s,
+            campana_id=ctx.campana.id,
+            titulo=f"📢 Aviso en {ctx.campana.nombre}",
+            cuerpo=aviso.mensaje,
+            excluir_usuario_id=ctx.usuario.id,
+            datos={"tipo": "aviso", "campana_id": str(ctx.campana.id), "aviso_id": str(aviso.id)},
+        )
+    except Exception:
+        pass
+
+    return AvisoSalida(
+        id=aviso.id,
+        campana_id=aviso.campana_id,
+        autor_id=aviso.autor_id,
+        autor_nombre=ctx.usuario.nombre,
+        mensaje=aviso.mensaje,
+        fijado=aviso.fijado,
+        creado=aviso.creado,
+    )
+
+
+@ruteador.delete(
+    "/campanas/{campana_id}/avisos/{aviso_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+async def eliminar_aviso(
+    aviso_id: uuid.UUID,
+    ctx: Contexto = Depends(contexto_activo),
+    s: AsyncSession = Depends(sesion),
+) -> None:
+    """Elimina un aviso del muro (solo admin de la campaña o el autor del aviso)."""
+    aviso = await s.get(Aviso, aviso_id)
+    if not aviso or aviso.campana_id != ctx.campana.id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "aviso no encontrado")
+
+    es_admin = ctx.integrante.rol == "admin"
+    es_autor = aviso.autor_id == ctx.usuario.id
+    if not (es_admin or es_autor):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "solo el admin o el autor pueden eliminar el aviso")
+
+    await s.delete(aviso)
+    s.add(
+        Historial(
+            campana_id=ctx.campana.id,
+            actor_id=ctx.usuario.id,
+            accion="aviso_eliminado",
+            objeto="aviso",
+            objeto_id=aviso_id,
+        )
+    )
+    await s.commit()
 

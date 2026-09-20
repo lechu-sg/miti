@@ -16,11 +16,13 @@ from ..db import sesion
 from ..esquemas import (
     CompradorSalida,
     CrearEntregaEntrada,
+    ItemRankingSalida,
     ItemVentaProductoSalida,
     MovimientoSalida,
     NuevaVenta,
     NuevoCobro,
     NumeroSalida,
+    RankingSalida,
     RechazarMovimiento,
     RecaudacionCaja,
     RecaudacionSalida,
@@ -33,6 +35,7 @@ from ..modelos import (
     Campana,
     Comprador,
     Historial,
+    Integrante,
     Movimiento,
     Numero,
     Producto,
@@ -456,6 +459,7 @@ async def registrar_venta(
 
 @ruteador.get("/campanas/{campana_id}/ventas", response_model=list[VentaSalida])
 async def listar_ventas(
+    adeudadas: bool = False,
     ctx: Contexto = Depends(contexto_activo),
     s: AsyncSession = Depends(sesion),
 ) -> list[VentaSalida]:
@@ -489,6 +493,8 @@ async def listar_ventas(
         confirmado = sum(m.importe for m in movs if m.estado == "confirmado")
         pendiente = sum(m.importe for m in movs if m.estado == "pendiente")
         saldo = max(0, v.importe - confirmado - pendiente)
+        if adeudadas and saldo <= 0:
+            continue
 
         # Regla §3.2: Solo quien vendió ve el teléfono del comprador
         telefono = (
@@ -1249,4 +1255,108 @@ async def ver_recaudacion(
         cajas=cajas_salida,
         productos_desglose=productos_desglose,
         gastos=total_gastos,
+    )
+
+
+@ruteador.get("/campanas/{campana_id}/ranking", response_model=RankingSalida)
+async def ranking_ventas(
+    ctx: Contexto = Depends(contexto_activo),
+    s: AsyncSession = Depends(sesion),
+) -> RankingSalida:
+    """Ranking de ventas del equipo (§7.7 de DEFINICION.md)."""
+    # 1. Integrantes activos
+    integrantes = (
+        await s.execute(
+            select(Integrante, Usuario.nombre)
+            .join(Usuario, Usuario.id == Integrante.usuario_id)
+            .where(Integrante.campana_id == ctx.campana.id, Integrante.estado == "activo")
+        )
+    ).all()
+
+    # 2. Ventas confirmadas
+    ventas = (
+        await s.execute(
+            select(Venta)
+            .options(selectinload(Venta.items))
+            .where(Venta.campana_id == ctx.campana.id, Venta.estado == "confirmada")
+        )
+    ).scalars().all()
+
+    # 3. Cobros confirmados por venta
+    venta_ids = [v.id for v in ventas]
+    cobrado_por_venta: dict[uuid.UUID, int] = {}
+    if venta_ids:
+        movs = (
+            await s.execute(
+                select(Movimiento.venta_id, func.sum(Movimiento.importe))
+                .where(Movimiento.venta_id.in_(venta_ids), Movimiento.estado == "confirmado")
+                .group_by(Movimiento.venta_id)
+            )
+        ).all()
+        for vid, tot in movs:
+            cobrado_por_venta[vid] = int(tot or 0)
+
+    # 4. Agrupar por vendedor
+    datos_por_vendedor: dict[uuid.UUID, dict] = {}
+    for integ, nom in integrantes:
+        datos_por_vendedor[integ.usuario_id] = {
+            "nombre": nom,
+            "cantidad": 0,
+            "total_vendido": 0,
+            "total_cobrado": 0,
+        }
+
+    es_rifa = ctx.campana.tipo == "rifa"
+    total_general_vendido = sum(v.importe for v in ventas)
+
+    for v in ventas:
+        if v.vendedor_id not in datos_por_vendedor:
+            u = await s.get(Usuario, v.vendedor_id)
+            datos_por_vendedor[v.vendedor_id] = {
+                "nombre": u.nombre if u else "Participante",
+                "cantidad": 0,
+                "total_vendido": 0,
+                "total_cobrado": 0,
+            }
+
+        entry = datos_por_vendedor[v.vendedor_id]
+        if es_rifa:
+            cant_items = sum(1 for it in v.items if it.numero is not None)
+        else:
+            cant_items = sum(it.cantidad for it in v.items if it.producto_id is not None)
+
+        entry["cantidad"] += cant_items
+        entry["total_vendido"] += v.importe
+        entry["total_cobrado"] += cobrado_por_venta.get(v.id, 0)
+
+    # Ordenar por cantidad desc, total_vendido desc
+    ordenados = sorted(
+        datos_por_vendedor.items(),
+        key=lambda x: (x[1]["cantidad"], x[1]["total_vendido"]),
+        reverse=True,
+    )
+
+    items_salida = []
+    for idx, (vid, d) in enumerate(ordenados, start=1):
+        porcentaje = (
+            round((d["total_vendido"] / total_general_vendido) * 100, 1)
+            if total_general_vendido > 0
+            else 0.0
+        )
+        items_salida.append(
+            ItemRankingSalida(
+                posicion=idx,
+                vendedor_id=vid,
+                nombre=d["nombre"],
+                cantidad=d["cantidad"],
+                total_vendido=d["total_vendido"],
+                total_cobrado=d["total_cobrado"],
+                porcentaje=porcentaje,
+            )
+        )
+
+    return RankingSalida(
+        campana_id=ctx.campana.id,
+        tipo=ctx.campana.tipo,
+        items=items_salida,
     )
