@@ -61,9 +61,12 @@ class _HojaGastoState extends ConsumerState<HojaGasto> {
 
   int _saldoCaja(String? cajaId) {
     if (cajaId == null) return 0;
-    final listaRec = (widget.cajasRecaudacion is List ? widget.cajasRecaudacion : []).cast<Map<String, dynamic>>();
-    final recC = listaRec.where((x) => x['caja_id'] == cajaId).firstOrNull;
-    return recC?['confirmado'] as int? ?? 0;
+    final listaRec = (widget.cajasRecaudacion is List ? widget.cajasRecaudacion as List : [])
+        .whereType<Map>()
+        .map((m) => m.cast<String, dynamic>())
+        .toList();
+    final recC = listaRec.where((x) => x['caja_id']?.toString() == cajaId.toString()).firstOrNull;
+    return (recC?['confirmado'] as num?)?.toInt() ?? 0;
   }
 
   int? get _importeCentavos {
@@ -163,11 +166,11 @@ class _HojaGastoState extends ConsumerState<HojaGasto> {
               controller: _importeControlador,
               keyboardType: TextInputType.number,
               inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-              style: t.importe.copyWith(color: c.tinta, fontSize: 26),
+              style: t.importe.copyWith(color: c.tinta, fontSize: 26.0),
               decoration: InputDecoration(
                 labelText: 'Importe del gasto',
                 prefixText: '\$ ',
-                prefixStyle: t.importe.copyWith(color: c.tinta, fontSize: 26),
+                prefixStyle: t.importe.copyWith(color: c.tinta, fontSize: 26.0),
                 labelStyle: t.etiqueta.copyWith(color: c.tintaSuave),
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(6)),
                 focusedBorder: OutlineInputBorder(

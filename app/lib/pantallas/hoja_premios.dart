@@ -38,6 +38,7 @@ class HojaPremios extends ConsumerStatefulWidget {
 
 class _HojaPremiosState extends ConsumerState<HojaPremios> {
   late final List<TextEditingController> _controladores;
+  late final List<FocusNode> _focusNodes;
   bool _guardando = false;
   String? _error;
 
@@ -50,6 +51,7 @@ class _HojaPremiosState extends ConsumerState<HojaPremios> {
     _controladores = iniciales
         .map((p) => TextEditingController(text: p))
         .toList();
+    _focusNodes = List.generate(iniciales.length, (_) => FocusNode());
   }
 
   @override
@@ -57,13 +59,20 @@ class _HojaPremiosState extends ConsumerState<HojaPremios> {
     for (final c in _controladores) {
       c.dispose();
     }
+    for (final f in _focusNodes) {
+      f.dispose();
+    }
     super.dispose();
   }
 
   void _agregarPremio() {
+    final nuevoFocus = FocusNode();
     setState(() {
-      final orden = _controladores.length + 1;
-      _controladores.add(TextEditingController(text: '$orden° Premio'));
+      _controladores.add(TextEditingController());
+      _focusNodes.add(nuevoFocus);
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      nuevoFocus.requestFocus();
     });
   }
 
@@ -72,6 +81,8 @@ class _HojaPremiosState extends ConsumerState<HojaPremios> {
     setState(() {
       final c = _controladores.removeAt(indice);
       c.dispose();
+      final f = _focusNodes.removeAt(indice);
+      f.dispose();
     });
   }
 
@@ -169,6 +180,7 @@ class _HojaPremiosState extends ConsumerState<HojaPremios> {
                       Expanded(
                         child: TextField(
                           controller: _controladores[index],
+                          focusNode: _focusNodes[index],
                           textCapitalization: TextCapitalization.sentences,
                           style: t.cuerpo.copyWith(color: c.tinta),
                           decoration: InputDecoration(

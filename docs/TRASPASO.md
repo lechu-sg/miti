@@ -197,17 +197,24 @@ Antes de publicar una versión nueva, subí `version:` en `app/pubspec.yaml`. La
       - Compartir en redes/WhatsApp: generación de tarjeta PNG multi-premio y texto detallado por cada premio.
     - `flutter analyze`: 0 issues.
     - `flutter test`: 10/10 en verde.
-  - **Última APK publicada:** `https://miti.sole.ar/descargas/miti-0.6.1.apk` (también disponible en `https://miti.sole.ar/descargas/miti.apk`).
+  - **Última APK publicada:** `https://miti.sole.ar/descargas/miti-0.6.1.apk`.
+
+- **Correcciones de Estabilidad y UX en Sorteos, Gastos y Productos (v0.6.2): HECHO.**
+  - **Auto-focus al agregar premio:** En `nueva_campana.dart` y `hoja_premios.dart`, al presionar "+ Agregar otro premio", se enfoca automáticamente el nuevo campo listo para escribir.
+  - **Sorteo y Ganador (Pantalla en blanco corregida):** Eliminación de dynamic dispatch en `ganador.dart` (`MitiColores c, MitiTextos t`) y conversión estricta a `double` en `fontSize: 22.0`, evitando `TypeError` en tiempo de ejecución que dejaba la pantalla en blanco en release.
+  - **Registrar Gasto (Blindaje de saldos):** En `hoja_gasto.dart` y `campana.dart`, tipado defensivo de `cajasRecaudacion` y saldos numéricos para evitar caídas runtime por formato de datos.
+  - **Desglose de Productos Vendidos (Cuadro blanco corregido):** En `_FilaDesgloseProducto` de `campana.dart`, mapeo seguro a las claves `cantidad`/`cantidad_vendida` y `total`/`recaudado` con conversión `num.toInt()`, evitando caída por `null as int` en el listado de productos de campaña.
+  - **Calidad de código:** `flutter analyze` 0 issues, `flutter test` 10/10 en verde.
+  - **Última APK publicada:** `https://miti.sole.ar/descargas/miti-0.6.2.apk` (también disponible en `https://miti.sole.ar/descargas/miti.apk`, SHA256 `A60BADB8D32E391D0DEA937B74F3AF3C823A5A155F33CA16C0CA600784F97C47`).
 
 ## 7. Pasos a seguir, en orden
 
-1. **El usuario prueba la APK 0.6.1 en el celular**:
-   - Crear una rifa nueva definiendo 2 o más premios (ej: 1° Premio: Moto, 2° Premio: TV).
-   - Editar los premios desde la campaña activa (botón "Premios de la rifa").
-   - Vender algunos números.
-   - Ir a "Sorteo y ganadores", ingresar los números de la lotería para cada premio y registrar.
-   - Verificar que no se repita el ganador si hay otros números vendidos disponibles.
-   - Compartir la tarjeta por WhatsApp con los resultados de todos los premios.
+1. **El usuario prueba la APK 0.6.2 en el celular**:
+   - Crear o editar premios en rifa y comprobar que el cursor se posiciona inmediatamente en el nuevo campo listo para escribir.
+   - Entrar a una campaña de productos y confirmar que el desglose de productos vendidos se ve correctamente sin ningún cuadro blanco.
+   - Registrar un gasto desde la campaña y verificar que la hoja abra sin pantallas en blanco y permita registrar egreso de bolsillo o caja.
+   - Entrar a "Sorteo y ganadores" en una rifa y verificar que el formulario cargue fluido y sin pantallas en blanco.
 2. **Siguientes funciones del backlog**:
    - Notificaciones push con Firebase Cloud Messaging (FCM).
+
 

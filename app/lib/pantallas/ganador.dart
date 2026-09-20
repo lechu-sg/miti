@@ -265,7 +265,7 @@ class _PantallaGanadorState extends ConsumerState<PantallaGanador> {
     );
   }
 
-  Widget _construirFormularioRegistro(dynamic c, dynamic t) {
+  Widget _construirFormularioRegistro(MitiColores c, MitiTextos t) {
     if (!widget.esAdmin) {
       return Center(
         child: Padding(
@@ -276,7 +276,7 @@ class _PantallaGanadorState extends ConsumerState<PantallaGanador> {
               const SizedBox(height: 16),
               Text(
                 'El sorteo aún no fue registrado',
-                style: t.titular.copyWith(color: c.tinta, fontSize: 20),
+                style: t.titular.copyWith(color: c.tinta, fontSize: 20.0),
               ),
               const SizedBox(height: 8),
               Text(
@@ -392,7 +392,7 @@ class _PantallaGanadorState extends ConsumerState<PantallaGanador> {
                   controller: _numerosControladores[index],
                   keyboardType: TextInputType.number,
                   inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                  style: t.importe.copyWith(color: c.tinta, fontSize: 22),
+                  style: t.importe.copyWith(color: c.tinta, fontSize: 22.0),
                   decoration: InputDecoration(
                     labelText: 'Número sorteado para este premio',
                     labelStyle: t.etiqueta.copyWith(color: c.tintaSuave),
@@ -507,7 +507,7 @@ class _PantallaGanadorState extends ConsumerState<PantallaGanador> {
     );
   }
 
-  Widget _construirResultado(dynamic c, dynamic t) {
+  Widget _construirResultado(MitiColores c, MitiTextos t) {
     final sorteos = _sorteos!;
 
     return Column(

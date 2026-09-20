@@ -565,7 +565,11 @@ class PantallaCampana extends ConsumerWidget {
                   if (!esRifa) ...[
                     Builder(
                       builder: (ctx) {
-                        final desglose = (rec?['productos_desglose'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+                        final desglose = (rec?['productos_desglose'] as List?)
+                                ?.whereType<Map>()
+                                .map((m) => m.cast<String, dynamic>())
+                                .toList() ??
+                            [];
                         if (desglose.isEmpty) return const SizedBox.shrink();
                         return Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -682,13 +686,16 @@ class PantallaCampana extends ConsumerWidget {
     final t = context.texto;
     final filas = <Widget>[];
 
-    final listaRec = (cajasRecaudacion is List ? cajasRecaudacion : []).cast<Map<String, dynamic>>();
+    final listaRec = (cajasRecaudacion is List ? cajasRecaudacion : [])
+        .whereType<Map>()
+        .map((m) => m.cast<String, dynamic>())
+        .toList();
 
     final principal = cajas.where((x) => x['tipo'] == 'principal').firstOrNull;
     if (principal != null) {
-      final recP = listaRec.where((x) => x['caja_id'] == principal['id']).firstOrNull;
-      final conf = recP?['confirmado'] as int? ?? 0;
-      final pend = recP?['pendiente'] as int? ?? 0;
+      final recP = listaRec.where((x) => x['caja_id']?.toString() == principal['id']?.toString()).firstOrNull;
+      final conf = (recP?['confirmado'] as num?)?.toInt() ?? 0;
+      final pend = (recP?['pendiente'] as num?)?.toInt() ?? 0;
 
       filas.add(
         Container(
@@ -696,7 +703,7 @@ class PantallaCampana extends ConsumerWidget {
           decoration: BoxDecoration(border: Border(bottom: BorderSide(color: c.troquel))),
           child: Row(
             children: [
-              MitiIniciales(iniciales(principal['titular'] as String)),
+              MitiIniciales(iniciales(principal['titular'] as String? ?? '')),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
@@ -724,18 +731,18 @@ class PantallaCampana extends ConsumerWidget {
 
     final titularesVistos = <String>{};
     for (final caja in cajas.where((x) => x['tipo'] != 'principal')) {
-      final titularId = caja['titular_id'] as String;
+      final titularId = caja['titular_id'] as String? ?? '';
       if (titularesVistos.contains(titularId)) continue;
       titularesVistos.add(titularId);
 
-      final cajasUsuario = cajas.where((x) => x['titular_id'] == titularId && x['tipo'] != 'principal');
+      final cajasUsuario = cajas.where((x) => (x['titular_id'] as String? ?? '') == titularId && x['tipo'] != 'principal');
       int totalConf = 0;
       int billete = 0;
       int efectivo = 0;
 
       for (final cu in cajasUsuario) {
-        final recU = listaRec.where((x) => x['caja_id'] == cu['id']).firstOrNull;
-        final conf = recU?['confirmado'] as int? ?? 0;
+        final recU = listaRec.where((x) => x['caja_id']?.toString() == cu['id']?.toString()).firstOrNull;
+        final conf = (recU?['confirmado'] as num?)?.toInt() ?? 0;
         totalConf += conf;
         if (cu['tipo'] == 'billetera') billete = conf;
         if (cu['tipo'] == 'efectivo') efectivo = conf;
@@ -1397,9 +1404,9 @@ class _FilaDesgloseProducto extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = context.color;
     final t = context.texto;
-    final nombre = item['nombre'] as String;
-    final cant = item['cantidad_vendida'] as int;
-    final recaudado = item['recaudado'] as int;
+    final nombre = item['nombre'] as String? ?? '';
+    final cant = ((item['cantidad'] ?? item['cantidad_vendida'] ?? 0) as num).toInt();
+    final recaudado = ((item['total'] ?? item['recaudado'] ?? 0) as num).toInt();
 
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
@@ -1417,7 +1424,7 @@ class _FilaDesgloseProducto extends StatelessWidget {
               ],
             ),
           ),
-          Text(plata(recaudado), style: t.cifra.copyWith(color: c.tinta, fontSize: 18)),
+          Text(plata(recaudado), style: t.cifra.copyWith(color: c.tinta, fontSize: 18.0)),
         ],
       ),
     );

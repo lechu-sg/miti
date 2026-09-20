@@ -25,6 +25,9 @@ class _PantallaNuevaCampanaState extends ConsumerState<PantallaNuevaCampana> {
   final List<TextEditingController> _premios = [
     TextEditingController(text: 'Primer Premio'),
   ];
+  final List<FocusNode> _focusPremios = [
+    FocusNode(),
+  ];
 
   String _tipo = 'rifa';
   bool _guardando = false;
@@ -39,6 +42,9 @@ class _PantallaNuevaCampanaState extends ConsumerState<PantallaNuevaCampana> {
     _precio.dispose();
     for (final p in _premios) {
       p.dispose();
+    }
+    for (final f in _focusPremios) {
+      f.dispose();
     }
     super.dispose();
   }
@@ -239,6 +245,7 @@ class _PantallaNuevaCampanaState extends ConsumerState<PantallaNuevaCampana> {
                       Expanded(
                         child: TextField(
                           controller: _premios[index],
+                          focusNode: _focusPremios[index],
                           textCapitalization: TextCapitalization.sentences,
                           decoration: InputDecoration(
                             labelText: '${index + 1}° Premio',
@@ -255,6 +262,8 @@ class _PantallaNuevaCampanaState extends ConsumerState<PantallaNuevaCampana> {
                             setState(() {
                               final ctrl = _premios.removeAt(index);
                               ctrl.dispose();
+                              final f = _focusPremios.removeAt(index);
+                              f.dispose();
                             });
                           },
                         ),
@@ -266,8 +275,13 @@ class _PantallaNuevaCampanaState extends ConsumerState<PantallaNuevaCampana> {
               const SizedBox(height: 4),
               InkWell(
                 onTap: () {
+                  final nuevoFocus = FocusNode();
                   setState(() {
-                    _premios.add(TextEditingController(text: '${_premios.length + 1}° Premio'));
+                    _premios.add(TextEditingController());
+                    _focusPremios.add(nuevoFocus);
+                  });
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    nuevoFocus.requestFocus();
                   });
                 },
                 borderRadius: BorderRadius.circular(6),
