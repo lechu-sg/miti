@@ -248,8 +248,47 @@ Antes de publicar una versión nueva, subí `version:` en `app/pubspec.yaml`. La
       - `flutter test`: 17/17 pruebas en verde (incluye `test/perfil_test.dart`).
   - **Última APK publicada:** `https://miti.sole.ar/descargas/miti-0.8.0.apk` (también en `https://miti.sole.ar/descargas/miti.apk`, SHA256 `9b3c3a6d36a42634fad4df9f6eab8290f2d1a75bd88fee17569267a40ab507e0`).
 
+- **Revisión de la fase 7 y cuatro huecos tapados (21/09/2026): HECHO.**
+  - **Respaldo de los comprobantes.** pgBackRest sólo cubre PostgreSQL, así que los
+    archivos de `/srv/miti/data/archivos` no tenían ninguna copia.
+    `infra/respaldo/respaldo-archivos.sh` hace una completa semanal y una
+    incremental diaria a Oracle, y una completa semanal a Backblaze, comprimidas
+    con tar y cifradas con gpg usando **la misma contraseña que pgBackRest ya usa
+    en ese destino** (repo1 / repo3): no hay una contraseña nueva que guardar.
+    `infra/respaldo/prueba-restauracion-archivos.sh 1|3` baja la última cadena,
+    la restaura y la compara con el disco; corre sola los días 4 y 5 de cada mes.
+    Probado a mano en los dos destinos: 16 archivos, idénticos.
+  - **Baja de cuenta.** `DELETE /yo` ahora borra también la fecha de nacimiento y
+    se rechaza con 409 si la persona participa de una campaña sin liquidar o si
+    le quedan transferencias de liquidación sin confirmar (si no, quedaba un
+    "Usuario eliminado" debiendo o esperando plata). `prueba_fase7_perfil.py`: 16/16.
+  - **Limpieza por retención (§9).** `python -m miti_api.limpieza` borra las
+    campañas liquidadas o archivadas hace más de 6 meses con todo lo que cuelga
+    de ellas, los archivos de comprobantes en disco, las carpetas huérfanas y los
+    rastros de acceso viejos (códigos +30 días, envíos de correo +90 días).
+    Se corre desde `infra/limpieza.sh` (con `--simulacion` sólo informa), todos
+    los días a las 05:00 UTC. Probado de punta a punta con una campaña envejecida.
+  - **Notificaciones push.** Estaban a medias: el servidor las registraba pero
+    Firebase no estaba configurado, y la app **nunca pedía un token**. Ahora está
+    todo conectado: en el servidor las credenciales entran por el secreto
+    `/srv/miti/secrets/firebase.json`, el envío usa `send_each` en un hilo aparte
+    y da de baja los tokens muertos; en la app `lib/nucleo/push.dart` pide permiso
+    (Android 13+), saca el token y lo registra al entrar.
+    **FALTA UN PASO DEL USUARIO** (ver abajo): sin el proyecto de Firebase las push
+    siguen sin llegar, pero la app compila y anda igual.
+
 ## 7. Pasos a seguir, en orden
 
+0. **Pendiente del usuario para que las push funcionen** (nadie más puede hacerlo,
+   hace falta su cuenta de Google):
+   1. Crear un proyecto en la consola de Firebase y agregarle una app Android con
+      el identificador `ar.sole.miti`.
+   2. Bajar `google-services.json` y dejarlo en `app/android/app/`. **No va al
+      repositorio.** Con ese archivo presente, el build lo toma solo.
+   3. En Configuración del proyecto → Cuentas de servicio, generar una clave
+      privada y subir ese JSON al VPS como `/srv/miti/secrets/firebase.json`
+      (644, dentro de la carpeta 700), reemplazando el `{}` de ejemplo. Después
+      `desplegar.sh` y probar una invitación: tiene que llegar la notificación.
 1. **El usuario prueba la APK 0.8.0 en el celular**:
    - Abrir "Mi perfil" tocando el avatar en la esquina superior derecha del inicio.
    - Probar el cambio de tema entre **Automático**, **Claro** y **Oscuro** comprobando el cambio visual inmediato en toda la app.
