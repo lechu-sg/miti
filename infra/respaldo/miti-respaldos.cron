@@ -18,3 +18,6 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 # Pruebas de restauración: Oracle el día 2 y Backblaze el día 3, 08:00 UTC.
 0 8 2 * *   root /srv/miti/app/infra/respaldo/prueba-restauracion.sh 1
 0 8 3 * *   root /srv/miti/app/infra/respaldo/prueba-restauracion.sh 3
+# Prueba de restauración de los comprobantes: Oracle el día 4 y Backblaze el día 5.
+0 8 4 * *   root /srv/miti/app/infra/respaldo/prueba-restauracion-archivos.sh 1
+0 8 5 * *   root /srv/miti/app/infra/respaldo/prueba-restauracion-archivos.sh 3
