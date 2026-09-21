@@ -276,6 +276,12 @@ Antes de publicar una versión nueva, subí `version:` en `app/pubspec.yaml`. La
     (Android 13+), saca el token y lo registra al entrar.
     **FALTA UN PASO DEL USUARIO** (ver abajo): sin el proyecto de Firebase las push
     siguen sin llegar, pero la app compila y anda igual.
+  - **Pruebas contra el servidor tras estos cambios:** las nueve suites en verde
+    (fase1 39, fase2 55, productos 43, sync 26, liquidación 34, gastos 33,
+    fase5 47, fase6 26, perfil 16) = **319 pruebas, 0 fallas**.
+    `flutter analyze` sin problemas y `flutter test` 17/17.
+  - **Última APK publicada:** `https://miti.sole.ar/descargas/miti-0.8.1.apk`
+    (también en `miti.apk`, SHA256 `5674b263db649aac5e5698a5b6e62edb0db7a05457bff8c594002f20acb6101a`).
 
 ## 7. Pasos a seguir, en orden
 
