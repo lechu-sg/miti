@@ -112,7 +112,7 @@ Antes de publicar una versión nueva, subí `version:` en `app/pubspec.yaml`. La
 - Los campos de mail van en un `AutofillGroup`, con `autofillHints: [AutofillHints.email]`, sugerencias activadas, ícono @ y `textInputAction.send`.
 - Nada de pantallas "genéricas de Material". Seguí la skill Talonario al pie de la letra: tokens, componentes (`MitiBoton`, `MitiTroquel`, `MitiTicket`, `MitiAviso`, `MitiIniciales`, `MitiChip`, `MitiVacio`) y la lista de prohibidos.
 
-## 6. Estado actual (18/09/2026)
+## 6. Estado actual (21/09/2026)
 
 - **Fase 0 (infra, respaldos, correo): HECHA.** mail-tester da 10/10 y la restauración está probada.
 - **Fase 1 (cuentas, campañas, invitaciones, cajas): HECHA y probada en el celular.**
@@ -246,7 +246,7 @@ Antes de publicar una versión nueva, subí `version:` en `app/pubspec.yaml`. La
     - Pruebas y calidad:
       - `flutter analyze`: 0 issues.
       - `flutter test`: 17/17 pruebas en verde (incluye `test/perfil_test.dart`).
-  - **Última APK publicada:** `https://miti.sole.ar/descargas/miti-0.8.0.apk` (también en `https://miti.sole.ar/descargas/miti.apk`).
+  - **Última APK publicada:** `https://miti.sole.ar/descargas/miti-0.8.0.apk` (también en `https://miti.sole.ar/descargas/miti.apk`, SHA256 `9b3c3a6d36a42634fad4df9f6eab8290f2d1a75bd88fee17569267a40ab507e0`).
 
 ## 7. Pasos a seguir, en orden
 
