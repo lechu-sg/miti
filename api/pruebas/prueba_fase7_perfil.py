@@ -103,7 +103,29 @@ def main():
     t2, r2 = entrar(U1, "Martín Fierro Editado")
     probar("Re-ingreso exitoso", True, bool(t2))
 
-    # 7. Eliminar cuenta con DELETE /yo
+    # 7. Con una campaña sin liquidar, la baja se rechaza (§ derecho al olvido
+    #    vs. cuentas abiertas con el grupo).
+    st, campana = llamar("POST", "/campanas", token=t2, cuerpo={
+        "tipo": "rifa",
+        "nombre": f"Baja bloqueada {sello}",
+        "rifa": {"desde": 0, "hasta": 9, "precio": 100000,
+                 "asignacion": "bolsa", "sorteo": "externo", "si_no_se_vendio": "resortear"},
+    })
+    probar("Campaña de prueba creada", 201, st)
+    st, err = llamar("DELETE", "/yo", token=t2)
+    probar("DELETE /yo con campaña sin liquidar rechaza con 409", 409, st)
+    probar(
+        "El mensaje nombra la campaña",
+        True,
+        "sin liquidar" in str(err.get("detail", "")) if isinstance(err, dict) else False,
+    )
+
+    # 7b. Archivada la campaña, la baja se puede hacer.
+    st, _ = llamar("PATCH", f"/campanas/{campana['id']}/estado", token=t2,
+                   cuerpo={"estado": "archivada"})
+    probar("Campaña archivada para liberar la baja", 200, st)
+
+    # 8. Eliminar cuenta con DELETE /yo
     st, _ = llamar("DELETE", "/yo", token=t2)
     probar("DELETE /yo responde 204 No Content", 204, st)
 

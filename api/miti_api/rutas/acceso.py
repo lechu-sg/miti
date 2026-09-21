@@ -5,14 +5,23 @@ import secrets
 from datetime import UTC, date, datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
-from sqlalchemy import delete, func, select, update
+from sqlalchemy import delete, func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from .. import correo, cripto
 from ..config import ajustes
 from ..db import sesion
 from ..esquemas import CambiarPerfil, PedirCodigo, Perfil, Refrescar, Tokens, Verificar
-from ..modelos import CodigoAcceso, Dispositivo, Historial, Sesion, Usuario
+from ..modelos import (
+    Campana,
+    CodigoAcceso,
+    Dispositivo,
+    Historial,
+    Integrante,
+    Sesion,
+    TransferenciaLiquidacion,
+    Usuario,
+)
 from ..seguridad import crear_refresco, crear_token, usuario_actual
 
 registro = logging.getLogger("miti.acceso")
@@ -245,12 +254,55 @@ async def eliminar_cuenta(
     s: AsyncSession = Depends(sesion),
 ) -> Response:
     """Baja de cuenta y derecho al olvido (Ley 25.326).
-    
+
     Anonimiza datos personales, revoca todas las sesiones y da de baja al usuario.
+    No se puede dar de baja con cuentas pendientes con el grupo: quedaría un
+    "Usuario eliminado" debiendo o esperando plata.
     """
     ahora = datetime.now(UTC)
+
+    # 1. Campañas en curso donde sigue participando.
+    en_curso = (
+        await s.execute(
+            select(Campana.nombre)
+            .join(Integrante, Integrante.campana_id == Campana.id)
+            .where(
+                Integrante.usuario_id == usuario.id,
+                Integrante.estado.in_(("invitado", "activo")),
+                Campana.estado.not_in(("liquidada", "archivada")),
+            )
+            .limit(5)
+        )
+    ).scalars().all()
+    if en_curso:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            "no podés darte de baja mientras participás de una campaña sin liquidar: "
+            + ", ".join(en_curso),
+        )
+
+    # 2. Transferencias de liquidación que todavía no se saldaron.
+    pendientes = (
+        await s.execute(
+            select(func.count(TransferenciaLiquidacion.id)).where(
+                TransferenciaLiquidacion.estado != "confirmada",
+                or_(
+                    TransferenciaLiquidacion.de_usuario_id == usuario.id,
+                    TransferenciaLiquidacion.a_usuario_id == usuario.id,
+                ),
+            )
+        )
+    ).scalar_one()
+    if pendientes:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            f"te quedan {pendientes} transferencia(s) de liquidación sin confirmar. "
+            "Saldá esas cuentas antes de darte de baja.",
+        )
+
     usuario.baja = ahora
     usuario.nombre = "Usuario eliminado"
+    usuario.nacimiento = None
 
     # Generar un hash y payload aleatorio para disociar el email real
     id_random = secrets.token_hex(16)
@@ -269,6 +321,8 @@ async def eliminar_cuenta(
     await s.execute(
         delete(Dispositivo).where(Dispositivo.usuario_id == usuario.id)
     )
+
+    s.add(Historial(actor_id=usuario.id, accion="cuenta_baja", objeto="usuario", objeto_id=usuario.id))
 
     await s.merge(usuario)
     await s.commit()
