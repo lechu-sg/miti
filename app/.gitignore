@@ -46,3 +46,5 @@ app.*.map.json
 
 # Widget Preview related
 .widget_preview/
+# Las credenciales de Firebase no van al repositorio.
+android/app/google-services.json
