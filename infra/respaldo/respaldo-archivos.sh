@@ -84,7 +84,8 @@ case "$TIPO" in
     export AWS_ACCESS_KEY_ID="$B2_KEY_ID"
     export AWS_SECRET_ACCESS_KEY="$B2_APP_KEY"
     unset AWS_SHARED_CREDENTIALS_FILE AWS_CONFIG_FILE
-    ENDPOINT="$B2_ENDPOINT"
+    # En b2.env el endpoint viene sin esquema, como lo quiere pgBackRest.
+    ENDPOINT="https://${B2_ENDPOINT#https://}"
     BUCKET="$B2_BUCKET"
     ;;
   *) echo "tipo desconocido: $TIPO"; exit 2 ;;
