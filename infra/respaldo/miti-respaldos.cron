@@ -21,3 +21,5 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 # Prueba de restauración de los comprobantes: Oracle el día 4 y Backblaze el día 5.
 0 8 4 * *   root /srv/miti/app/infra/respaldo/prueba-restauracion-archivos.sh 1
 0 8 5 * *   root /srv/miti/app/infra/respaldo/prueba-restauracion-archivos.sh 3
+# Limpieza por retención (6 meses), todos los días 05:00 UTC.
+0 5 * * *   root /srv/miti/app/infra/limpieza.sh
