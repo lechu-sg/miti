@@ -53,6 +53,11 @@ clave_de() {  # lee la contraseña de cifrado que pgBackRest ya usa en ese repos
 
 mkdir -p "$ORIGEN"
 
+# Oracle (y Backblaze) rechazan el "chunked encoding" que la CLI de AWS usa
+# por defecto desde la 2.23: sin esto la subida falla con NotImplemented.
+export AWS_REQUEST_CHECKSUM_CALCULATION=when_required
+export AWS_RESPONSE_CHECKSUM_VALIDATION=when_required
+
 case "$TIPO" in
   diaria|semanal)
     # La semanal arranca una cadena nueva; la diaria continúa la última.
