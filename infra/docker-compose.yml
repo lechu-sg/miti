@@ -69,7 +69,8 @@ services:
       MITI_DB_CLAVE_ARCHIVO: /run/secrets/db_password
       MITI_CLAVES_ARCHIVO: /run/secrets/claves
       MITI_SMTP_ARCHIVO: /run/secrets/smtp
-    secrets: [db_password, claves, smtp]
+      MITI_FIREBASE_CREDENCIALES: /run/secrets/firebase
+    secrets: [db_password, claves, smtp, firebase]
     volumes:
       - /srv/miti/data/archivos:/srv/miti/data/archivos
     depends_on:
@@ -84,6 +85,10 @@ secrets:
     file: /srv/miti/secrets/claves.env
   smtp:
     file: /srv/miti/secrets/smtp.env
+  # Credenciales del proyecto de Firebase para las push. Mientras el archivo
+  # sea el de ejemplo, los envíos quedan en el registro y la API anda igual.
+  firebase:
+    file: /srv/miti/secrets/firebase.json
 
 networks:
   borde:

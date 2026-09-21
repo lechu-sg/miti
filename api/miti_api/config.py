@@ -41,6 +41,9 @@ class Ajustes(BaseSettings):
     limite_gratis_numeros: int = 100
     limite_gratis_ventas: int = 20
     carpeta_archivos: str = "/srv/miti/data/archivos"
+    # Credenciales de Firebase para las notificaciones push. Si el archivo no
+    # está, el envío queda en modo registro y la app no se cae.
+    firebase_credenciales: str = "/run/secrets/firebase"
 
     @property
     def url_db(self) -> str:

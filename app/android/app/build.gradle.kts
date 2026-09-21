@@ -4,6 +4,12 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+// Las notificaciones push necesitan el google-services.json del proyecto de
+// Firebase. Mientras no esté, la app compila igual y arranca sin push.
+if (file("google-services.json").exists()) {
+    apply(plugin = "com.google.gms.google-services")
+}
+
 android {
     namespace = "ar.sole.miti"
     compileSdk = flutter.compileSdkVersion

@@ -5,6 +5,7 @@ import 'package:intl/date_symbol_data_local.dart';
 
 import 'estado/ajustes.dart';
 import 'estado/sesion.dart';
+import 'nucleo/push.dart';
 import 'nucleo/tema.dart';
 import 'pantallas/campanas.dart';
 import 'pantallas/ingreso.dart';
@@ -55,7 +56,14 @@ class _Puerta extends ConsumerWidget {
       child: sesion.when(
         loading: () => const Scaffold(body: Center(child: CircularProgressIndicator())),
         error: (_, __) => const PantallaIngreso(),
-        data: (perfil) => perfil == null ? const PantallaIngreso() : const PantallaCampanas(),
+        data: (perfil) {
+          if (perfil == null) return const PantallaIngreso();
+          // Con sesión abierta se registra el celular para las novedades.
+          WidgetsBinding.instance.addPostFrameCallback(
+            (_) => Push.encender(ref.read(apiProvider)),
+          );
+          return const PantallaCampanas();
+        },
       ),
     );
   }
