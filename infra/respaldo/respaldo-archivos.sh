@@ -118,23 +118,23 @@ trap fallar ERR
 # semana, así que siempre quedan varias cadenas enteras). En Backblaze se
 # conservan las 4 completas más nuevas, igual que pgBackRest.
 LIMITE=$(date -u -d "-$DIAS_A_GUARDAR days" +%Y-%m-%d)
+VIEJAS=""
 if [ "$TIPO" = externa ]; then
-  aws s3api list-objects-v2 --bucket "$BUCKET" --prefix archivos/ \
+  VIEJAS=$(aws s3api list-objects-v2 --bucket "$BUCKET" --prefix archivos/ \
       --endpoint-url "$ENDPOINT" --query 'sort_by(Contents,&LastModified)[].Key' --output text \
-    | tr '\t' '\n' | grep -v '^$' | head -n -4 \
-    | while read -r vieja; do
-        echo "borrando $vieja"
-        aws s3 rm "s3://$BUCKET/$vieja" --endpoint-url "$ENDPOINT" --only-show-errors
-      done
+    | tr '\t' '\n' | grep -v '^\(None\)\?$' | head -n -4 || true)
 elif [ "$TIPO" = semanal ]; then
-  aws s3api list-objects-v2 --bucket "$BUCKET" --prefix archivos/ \
+  VIEJAS=$(aws s3api list-objects-v2 --bucket "$BUCKET" --prefix archivos/ \
       --endpoint-url "$ENDPOINT" \
       --query "Contents[?LastModified<='${LIMITE}'].Key" --output text \
-    | tr '\t' '\n' | grep -v '^$' \
-    | while read -r vieja; do
-        echo "borrando $vieja"
-        aws s3 rm "s3://$BUCKET/$vieja" --endpoint-url "$ENDPOINT" --only-show-errors
-      done
+    | tr '\t' '\n' | grep -v '^\(None\)\?$' || true)
+fi
+if [ -n "$VIEJAS" ]; then
+  while read -r vieja; do
+    [ -n "$vieja" ] || continue
+    echo "borrando $vieja"
+    aws s3 rm "s3://$BUCKET/$vieja" --endpoint-url "$ENDPOINT" --only-show-errors
+  done <<< "$VIEJAS"
 fi
 
 echo "OK $(date -u +%FT%TZ) $TIPO ($NIVEL, $TAMANO bytes)" > "$BASE/estado/archivos-$TIPO.txt"
