@@ -308,8 +308,15 @@ Antes de publicar una versión nueva, subí `version:` en `app/pubspec.yaml`. La
     de campaña suspendida, AdMob (`nucleo/publicidad.dart`) con los **ID de prueba de Google**.
     **Arreglo:** `plata()` mostraba "15.000 $" (formato es_AR de intl); ahora "$ 15.000".
     `MitiBoton` parte los textos largos en dos líneas.
-  - **Pruebas:** `prueba_fase7_planes.py` 32/32, `prueba_fase7_admin.py` 41/41, y las nueve
-    anteriores en verde. App: `flutter analyze` limpio, `flutter test` 22/22.
+  - **Pruebas:** las once suites de API en verde contra el servidor, **392 pruebas**
+    (`prueba_fase7_planes.py` 32, `prueba_fase7_admin.py` 41 y las nueve anteriores).
+    App: `flutter analyze` limpio, `flutter test` 22/22.
+  - **Compilación:** `google_mobile_ads` tiene que ser 9.x (la 5.3 rompe con Gradle 9). En
+    `build.gradle.kts` no usar `java.util...` dentro de `android {}`: choca con la extensión `java`.
+  - **Última APK publicada:** `https://miti.sole.ar/descargas/miti-0.9.0.apk` (también `miti.apk`,
+    SHA256 `407532065e1ae53fa7b45975a7f595ae9e689dd099d1552997ce558581d56c11`).
+    **Al publicar, comparar la huella local con la del servidor**: una vez se publicó un APK
+    viejo con nombre nuevo porque la compilación había fallado y nadie lo miró.
 
 ## 7. Pasos a seguir, en orden
 
