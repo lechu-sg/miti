@@ -219,7 +219,10 @@ class _TarjetaConflicto extends StatelessWidget {
             )
           else
             Text(
-              'La operación no pudo confirmarse (${op['motivo'] ?? 'conflicto'}).',
+              op['motivo'] == 'limite_plan'
+                  ? 'No entró porque la campaña llegó al tope de ventas de su plan. '
+                      'Quien administra la campaña puede mejorarlo desde "Plan de la campaña".'
+                  : 'La operación no pudo confirmarse (${op['motivo'] ?? 'conflicto'}).',
               style: t.pie.copyWith(color: c.tintaSuave),
             ),
           const SizedBox(height: 14),

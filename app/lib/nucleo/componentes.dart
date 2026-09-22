@@ -52,9 +52,15 @@ class MitiBoton extends StatelessWidget {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       if (icono != null) ...[Icon(icono, size: 20, color: letra), const SizedBox(width: 8)],
-                      Text(
-                        texto,
-                        style: context.texto.cuerpo.copyWith(fontWeight: FontWeight.w700, color: letra),
+                      // Flexible: un texto largo se parte en dos líneas en vez de desbordar el botón.
+                      Flexible(
+                        child: Text(
+                          texto,
+                          textAlign: TextAlign.center,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: context.texto.cuerpo.copyWith(fontWeight: FontWeight.w700, color: letra),
+                        ),
                       ),
                     ],
                   ),
@@ -657,4 +663,34 @@ class MitiHoja extends StatelessWidget {
     ),
   );
 }
+}
+
+/// Error que se muestra dentro de la pantalla o de la hoja, donde el teclado no lo tapa.
+class MitiErrorEnLinea extends StatelessWidget {
+  const MitiErrorEnLinea({super.key, required this.texto});
+
+  final String texto;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.color;
+    final t = context.texto;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        border: Border.all(color: c.sello, width: 2),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.error_outline, size: 18, color: c.selloTexto),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(texto, style: t.cuerpo.copyWith(color: c.selloTexto, fontWeight: FontWeight.w600)),
+          ),
+        ],
+      ),
+    );
+  }
 }

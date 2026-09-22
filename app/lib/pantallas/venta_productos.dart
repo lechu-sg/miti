@@ -9,6 +9,7 @@ import '../nucleo/formato.dart';
 import '../nucleo/sincronizador.dart';
 import '../nucleo/tema.dart';
 import 'billete.dart';
+import 'plan.dart';
 
 /// Pantalla para tomar un pedido o registrar venta de productos.
 class PantallaVentaProductos extends ConsumerStatefulWidget {
@@ -141,6 +142,12 @@ class _PantallaVentaProductosState extends ConsumerState<PantallaVentaProductos>
     } on ErrorApi catch (e) {
       if (mounted) {
         setState(() => _enviando = false);
+        if (e.codigo == 402) {
+          final campana = ref.read(campanaProvider(widget.campanaId)).valueOrNull;
+          await ofrecerMejora(context,
+              campanaId: widget.campanaId, mensaje: e.mensaje, esAdmin: campana?['mi_rol'] == 'admin');
+          return;
+        }
         mostrarAviso(context, e.mensaje, error: true);
       }
     } catch (_) {

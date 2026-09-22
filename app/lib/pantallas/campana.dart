@@ -22,9 +22,11 @@ import 'hoja_premios.dart';
 import 'hoja_ranking.dart';
 import 'liquidacion.dart';
 import 'muro_avisos.dart';
+import 'plan.dart';
 import 'venta_productos.dart';
 import '../nucleo/recordatorio_deuda.dart';
 import '../nucleo/sincronizador.dart';
+import '../nucleo/publicidad.dart';
 
 /// La campaña por dentro: cuánto se juntó, dónde está la plata y quiénes son.
 class PantallaCampana extends ConsumerWidget {
@@ -119,6 +121,15 @@ class PantallaCampana extends ConsumerWidget {
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(16, 0, 16, 40),
                 children: [
+                  if (campana['suspendida'] == true)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 12),
+                      child: MitiErrorEnLinea(
+                        texto: 'Campaña suspendida: se puede mirar y exportar, pero no cargar nada.'
+                            '${campana['motivo_suspension'] != null ? ' Motivo: ${campana['motivo_suspension']}.' : ''}'
+                            ' Consultas a miti@sole.ar',
+                      ),
+                    ),
                   Row(
                     children: [
                       IconButton(
@@ -430,6 +441,7 @@ class PantallaCampana extends ConsumerWidget {
                                 precioUnitario: config['precio'] as int? ?? 0,
                                 fechaSorteo: config['fecha_sorteo'] as String?,
                                 numeros: nums.cast<Map<String, dynamic>>(),
+                                conPublicidad: ref.read(publicidadEnCampanaProvider(campanaId)),
                               ),
                             ),
                           );
@@ -546,6 +558,15 @@ class PantallaCampana extends ConsumerWidget {
                       icono: Icons.file_download_outlined,
                       secundario: true,
                       onTap: () => _mostrarMenuExportar(context, ref, campana['nombre'] as String),
+                    ),
+                    const SizedBox(height: 10),
+                    MitiBoton(
+                      texto: 'Plan de la campaña',
+                      icono: Icons.workspace_premium_outlined,
+                      secundario: true,
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => PantallaPlan(campanaId: campanaId, esAdmin: esAdmin)),
+                      ),
                     ),
                     const SizedBox(height: 10),
                     MitiBoton(
@@ -1109,7 +1130,12 @@ class PantallaCampana extends ConsumerWidget {
       ref.invalidate(numerosProvider(campanaId));
       if (context.mounted) mostrarAviso(context, 'La campaña quedó activa');
     } on ErrorApi catch (e) {
-      if (context.mounted) mostrarAviso(context, e.mensaje, error: true);
+      if (!context.mounted) return;
+      if (e.codigo == 402) {
+        await ofrecerMejora(context, campanaId: campanaId, mensaje: e.mensaje, esAdmin: true);
+      } else {
+        mostrarAviso(context, e.mensaje, error: true);
+      }
     }
   }
 
@@ -1619,6 +1645,7 @@ class _HojaInvitar extends ConsumerStatefulWidget {
 class _HojaInvitarState extends ConsumerState<_HojaInvitar> {
   bool _trabajando = false;
   String? _error;
+  bool _esLimite = false; // el error es el tope de integrantes del plan
 
   Future<void> _invitar() async {
     final email = widget.email.text.trim();
@@ -1637,7 +1664,12 @@ class _HojaInvitarState extends ConsumerState<_HojaInvitar> {
         mostrarAviso(context, 'Invitaste a ${r['nombre']}');
       }
     } on ErrorApi catch (e) {
-      if (mounted) setState(() => _error = e.mensaje);
+      if (mounted) {
+        setState(() {
+          _error = e.mensaje;
+          _esLimite = e.codigo == 402;
+        });
+      }
     } catch (_) {
       if (mounted) setState(() => _error = 'No pudimos conectarnos. ¿Tenés señal?');
     } finally {
@@ -1705,6 +1737,20 @@ class _HojaInvitarState extends ConsumerState<_HojaInvitar> {
                   ],
                 ),
               ),
+              if (_esLimite) ...[
+                const SizedBox(height: 10),
+                MitiBoton(
+                  texto: 'Ver planes',
+                  icono: Icons.workspace_premium_outlined,
+                  secundario: true,
+                  onTap: () {
+                    Navigator.of(context).pop();
+                    Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => PantallaPlan(campanaId: widget.campanaId, esAdmin: true)),
+                    );
+                  },
+                ),
+              ],
             ],
             const SizedBox(height: 8),
             Text('Tiene que tener cuenta en Miti. Le va a aparecer la invitación al entrar.',

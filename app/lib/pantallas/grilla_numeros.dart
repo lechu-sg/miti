@@ -6,6 +6,7 @@ import '../nucleo/api.dart';
 import '../nucleo/componentes.dart';
 import '../nucleo/formato.dart';
 import '../nucleo/tema.dart';
+import '../nucleo/publicidad.dart';
 import 'compartir_disponibles.dart';
 import 'registrar_venta.dart';
 
@@ -193,6 +194,7 @@ class _PantallaGrillaNumerosState extends ConsumerState<PantallaGrillaNumeros> {
     final asyncNums = ref.watch(numerosProvider(widget.campanaId));
 
     return Scaffold(
+      bottomNavigationBar: BannerMiti(mostrar: ref.watch(publicidadEnCampanaProvider(widget.campanaId))),
       appBar: AppBar(
         title: Text(widget.campanaNombre, style: t.seccion.copyWith(color: c.tinta)),
         backgroundColor: Colors.transparent,

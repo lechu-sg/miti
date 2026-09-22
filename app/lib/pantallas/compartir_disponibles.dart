@@ -11,6 +11,7 @@ import 'package:share_plus/share_plus.dart';
 
 import '../nucleo/componentes.dart';
 import '../nucleo/tema.dart';
+import '../nucleo/publicidad.dart';
 
 /// Generador de imagen con la grilla de números disponibles para compartir en redes.
 /// Permite seleccionar el afiche/flyer de fondo y recortar el área donde se colocarán
@@ -22,8 +23,11 @@ class PantallaCompartirDisponibles extends StatefulWidget {
     required this.precioUnitario,
     required this.numeros,
     this.fechaSorteo,
+    this.conPublicidad = false,
   });
 
+  /// Plan con publicidad: al generar la imagen puede aparecer un intersticial.
+  final bool conPublicidad;
   final String campanaNombre;
   final int precioUnitario;
   final List<Map<String, dynamic>> numeros;
@@ -163,6 +167,7 @@ class _PantallaCompartirDisponiblesState extends State<PantallaCompartirDisponib
           text: texto,
         ),
       );
+      if (widget.conPublicidad) await Publicidad.intersticialAlGenerarImagen();
     } catch (e) {
       if (mounted) mostrarAviso(context, 'No se pudo exportar la imagen', error: true);
     } finally {

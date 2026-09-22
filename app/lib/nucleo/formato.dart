@@ -1,14 +1,17 @@
 import 'package:intl/intl.dart';
 
 /// La plata viaja SIEMPRE en centavos enteros. Acá se convierte para mostrar.
-final _pesos = NumberFormat.currency(locale: 'es_AR', symbol: r'$ ', decimalDigits: 0);
-final _conCentavos = NumberFormat.currency(locale: 'es_AR', symbol: r'$ ', decimalDigits: 2);
+// Ojo: el formato de moneda de es_AR de intl pone el signo DESPUÉS ("15.000 $").
+// En Argentina se escribe "$ 15.000", así que se usa el número solo y el signo adelante.
+final _pesos = NumberFormat('#,##0', 'es_AR');
+final _conCentavos = NumberFormat('#,##0.00', 'es_AR');
 final _fecha = DateFormat('d/M/y', 'es_AR');
 
 String plata(int centavos, {bool exacto = false}) {
   final valor = centavos / 100;
-  if (!exacto && centavos % 100 == 0) return _pesos.format(valor);
-  return _conCentavos.format(valor);
+  final signo = valor < 0 ? '-' : '';
+  final cifra = (!exacto && centavos % 100 == 0 ? _pesos : _conCentavos).format(valor.abs());
+  return '$signo\$ $cifra';
 }
 
 int? aCentavos(String texto) {
@@ -17,6 +20,9 @@ int? aCentavos(String texto) {
   if (valor == null) return null;
   return (valor * 100).round();
 }
+
+/// 10000 → "10.000".
+String miles(int n) => NumberFormat.decimalPattern('es_AR').format(n);
 
 String fechaCorta(DateTime cuando) => _fecha.format(cuando.toLocal());
 

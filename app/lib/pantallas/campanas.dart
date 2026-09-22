@@ -6,6 +6,7 @@ import '../nucleo/api.dart';
 import '../nucleo/componentes.dart';
 import '../nucleo/formato.dart';
 import '../nucleo/tema.dart';
+import '../nucleo/publicidad.dart';
 import 'campana.dart';
 import 'nueva_campana.dart';
 import 'perfil.dart';
@@ -21,7 +22,14 @@ class PantallaCampanas extends ConsumerWidget {
     final invitaciones = ref.watch(invitacionesProvider);
     final perfil = ref.watch(sesionProvider).value;
 
+    // Banner sólo si ninguna de las campañas en curso tiene un plan pago.
+    final conPublicidad = ref.watch(planesConPublicidadProvider).valueOrNull;
+    final enCurso = (campanas.valueOrNull ?? const [])
+        .where((c) => c['estado'] != 'liquidada' && c['estado'] != 'archivada');
+    final mostrarBanner = conPublicidad != null && enCurso.every((c) => conPublicidad.contains(c['plan']));
+
     return Scaffold(
+      bottomNavigationBar: BannerMiti(mostrar: mostrarBanner),
       body: SafeArea(
         child: RefreshIndicator(
           color: c.sello,

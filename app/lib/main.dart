@@ -5,6 +5,7 @@ import 'package:intl/date_symbol_data_local.dart';
 
 import 'estado/ajustes.dart';
 import 'estado/sesion.dart';
+import 'nucleo/publicidad.dart';
 import 'nucleo/push.dart';
 import 'nucleo/tema.dart';
 import 'pantallas/campanas.dart';
@@ -13,6 +14,8 @@ import 'pantallas/ingreso.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initializeDateFormatting('es_AR');
+  // No se espera: si AdMob tarda o falla, la app arranca igual.
+  Publicidad.iniciar();
   runApp(const ProviderScope(child: AppMiti()));
 }
 

@@ -477,6 +477,22 @@ class ApiMiti {
     return [];
   }
 
+  // --- Planes y mejoras con MercadoPago (§11) ---
+
+  Future<List<Map<String, dynamic>>> planes() async =>
+      ((await pedir('GET', '/planes')) as List).cast<Map<String, dynamic>>();
+
+  Future<Map<String, dynamic>> estadoPlan(String campanaId) async =>
+      (await pedir('GET', '/campanas/$campanaId/plan')) as Map<String, dynamic>;
+
+  /// Crea el pago en MercadoPago y devuelve `url_pago` para abrir en el navegador.
+  Future<Map<String, dynamic>> pedirMejora(String campanaId, String plan) async =>
+      (await pedir('POST', '/campanas/$campanaId/mejora', cuerpo: {'plan': plan})) as Map<String, dynamic>;
+
+  /// Estado de una compra. Si sigue pendiente, el servidor le pregunta a MercadoPago.
+  Future<Map<String, dynamic>> verCompra(String campanaId, String compraId) async =>
+      (await pedir('GET', '/campanas/$campanaId/compras/$compraId')) as Map<String, dynamic>;
+
   // --- Registro de token FCM (§5.7) ---
 
   Future<Map<String, dynamic>> registrarTokenDispositivo({

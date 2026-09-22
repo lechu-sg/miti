@@ -7,6 +7,7 @@ import '../nucleo/api.dart';
 import '../nucleo/componentes.dart';
 import '../nucleo/formato.dart';
 import '../nucleo/tema.dart';
+import '../nucleo/publicidad.dart';
 
 class PantallaMuroAvisos extends ConsumerStatefulWidget {
   const PantallaMuroAvisos({
@@ -185,6 +186,7 @@ class _PantallaMuroAvisosState extends ConsumerState<PantallaMuroAvisos> {
     final avisosAsync = ref.watch(avisosProvider(widget.campanaId));
 
     return Scaffold(
+      bottomNavigationBar: BannerMiti(mostrar: ref.watch(publicidadEnCampanaProvider(widget.campanaId))),
       appBar: AppBar(
         title: Text('MURO DE AVISOS', style: t.seccion.copyWith(color: c.tinta)),
         backgroundColor: Colors.transparent,

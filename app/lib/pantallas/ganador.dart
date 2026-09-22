@@ -11,6 +11,7 @@ import 'package:share_plus/share_plus.dart';
 import '../estado/sesion.dart';
 import '../nucleo/componentes.dart';
 import '../nucleo/tema.dart';
+import '../nucleo/publicidad.dart';
 import 'hoja_premios.dart';
 
 /// Pantalla de Sorteo y Ganadores (§3.3 y §7.8 de DEFINICION.md).
@@ -229,6 +230,9 @@ class _PantallaGanadorState extends ConsumerState<PantallaGanador> {
         );
       } else {
         await SharePlus.instance.share(ShareParams(text: texto));
+      }
+      if (ref.read(publicidadEnCampanaProvider(widget.campanaId))) {
+        await Publicidad.intersticialAlGenerarImagen();
       }
     } catch (_) {
       if (mounted) mostrarAviso(context, 'No se pudo abrir el menú de compartir', error: true);
