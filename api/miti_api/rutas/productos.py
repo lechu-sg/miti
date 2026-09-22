@@ -8,7 +8,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from .. import cripto
+from .. import cripto, planes
 from ..config import ajustes
 from ..db import sesion
 from ..esquemas import (
@@ -182,20 +182,7 @@ async def registrar_venta_productos(
             f"no se pueden registrar ventas en una campaña con estado «{ctx.campana.estado}»",
         )
 
-    # Control de límites del plan gratis
-    if ctx.campana.plan == "gratis":
-        cant_ventas = (
-            await s.execute(
-                select(func.count()).select_from(Venta).where(
-                    Venta.campana_id == ctx.campana.id, Venta.estado == "confirmada"
-                )
-            )
-        ).scalar_one()
-        if cant_ventas >= ajustes().limite_gratis_ventas:
-            raise HTTPException(
-                status.HTTP_402_PAYMENT_REQUIRED,
-                f"el plan gratis admite hasta {ajustes().limite_gratis_ventas} ventas",
-            )
+    await planes.verificar_ventas(s, ctx.campana)
 
     # Buscar productos solicitados
     prod_ids = [it.producto_id for it in datos.items]

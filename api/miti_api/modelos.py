@@ -65,6 +65,9 @@ class Usuario(Base):
     creado: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     ultimo_acceso: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     baja: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # Bloqueado desde el panel: no puede entrar, pero su historial queda intacto.
+    bloqueado: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    motivo_bloqueo: Mapped[str | None] = mapped_column(Text)
 
 
 class CodigoAcceso(Base):
@@ -117,6 +120,9 @@ class Campana(Base):
     config: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
     creada: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     bloqueada: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # Suspendida desde el panel de administración (abuso, reclamo): nadie opera.
+    suspendida: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    motivo_suspension: Mapped[str | None] = mapped_column(Text)
 
     integrantes: Mapped[list["Integrante"]] = relationship(back_populates="campana", lazy="selectin")
     cajas: Mapped[list["Caja"]] = relationship(back_populates="campana", lazy="selectin")
@@ -528,3 +534,76 @@ class Dispositivo(Base):
     usuario: Mapped["Usuario"] = relationship(lazy="selectin")
 
 
+
+
+# --- Fase 7: planes, cobro con MercadoPago y panel de administración (§11) ---
+
+ESTADOS_COMPRA = ("pendiente", "aprobada", "rechazada", "cancelada", "reintegrada")
+
+
+class Plan(Base):
+    """Un plan y sus límites. Precio y límites se editan desde el panel sin sacar versión."""
+
+    __tablename__ = "planes"
+
+    codigo: Mapped[str] = mapped_column(String(20), primary_key=True)
+    nombre: Mapped[str] = mapped_column(Text, nullable=False)
+    orden: Mapped[int] = mapped_column(Integer, nullable=False)          # para saber qué es "mejorar"
+    precio: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)  # centavos de ARS
+    limite_integrantes: Mapped[int | None] = mapped_column(Integer)     # None = sin límite
+    limite_numeros: Mapped[int | None] = mapped_column(Integer)         # tamaño del talonario
+    limite_ventas: Mapped[int | None] = mapped_column(Integer)          # ventas de productos
+    limite_campanas_activas: Mapped[int | None] = mapped_column(Integer)  # por creador
+    publicidad: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    actualizado: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
+class CompraCampana(Base):
+    """Una mejora de plan pagada con MercadoPago Checkout Pro."""
+
+    __tablename__ = "compras_campana"
+    __table_args__ = (
+        CheckConstraint(_en_lista("estado", ESTADOS_COMPRA), name="compras_estado"),
+        Index("ix_compras_campana", "campana_id", "creada"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=_uuid)
+    campana_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("campanas.id", ondelete="CASCADE"), nullable=False
+    )
+    usuario_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("usuarios.id"), nullable=False)
+    plan_desde: Mapped[str] = mapped_column(String(20), nullable=False)
+    plan_hasta: Mapped[str] = mapped_column(String(20), nullable=False)
+    importe: Mapped[int] = mapped_column(BigInteger, nullable=False)     # centavos cobrados
+    estado: Mapped[str] = mapped_column(String(20), nullable=False, default="pendiente")
+    preferencia_id: Mapped[str | None] = mapped_column(String(80))
+    pago_id: Mapped[str | None] = mapped_column(String(40), unique=True)
+    detalle_estado: Mapped[str | None] = mapped_column(Text)
+    creada: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    acreditada: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class Administrador(Base):
+    """Quién entra al panel /admin. Segundo factor TOTP obligatorio."""
+
+    __tablename__ = "administradores"
+
+    usuario_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("usuarios.id"), primary_key=True)
+    totp_cifrado: Mapped[bytes | None] = mapped_column(LargeBinary)     # None = falta enrolar
+    creado: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class AccesoAdmin(Base):
+    """Auditoría del panel (§9): cada ingreso, intento fallido y acción."""
+
+    __tablename__ = "admin_accesos"
+    __table_args__ = (Index("ix_admin_accesos_cuando", "cuando"),)
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    usuario_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("usuarios.id"))
+    accion: Mapped[str] = mapped_column(String(40), nullable=False)
+    detalle: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    ip: Mapped[str | None] = mapped_column(String(64))
+    cuando: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

@@ -130,6 +130,9 @@ class CampanaSalida(BaseModel):
     creada: datetime
     mi_rol: str
     mi_estado: str
+    # Suspendida desde el panel: la app avisa y no deja cargar nada.
+    suspendida: bool = False
+    motivo_suspension: str | None = None
 
 
 class CampanaDetalle(CampanaSalida):
@@ -552,3 +555,59 @@ class DispositivoSalida(BaseModel):
     plataforma: str
     version_app: str | None = None
     actualizado: datetime
+
+
+# --- Planes y mejoras con MercadoPago (§11) ---
+
+
+class PlanSalida(BaseModel):
+    codigo: str
+    nombre: str
+    orden: int
+    precio: int
+    limite_integrantes: int | None
+    limite_numeros: int | None
+    limite_ventas: int | None
+    limite_campanas_activas: int | None
+    publicidad: bool
+
+
+class UsoPlan(BaseModel):
+    integrantes: int
+    numeros: int | None       # tamaño del talonario (sólo rifas)
+    ventas: int | None        # ventas confirmadas (sólo productos)
+
+
+class MejoraPosible(BaseModel):
+    plan: PlanSalida
+    a_pagar: int              # centavos: la diferencia con el plan actual
+
+
+class EstadoPlanCampana(BaseModel):
+    actual: PlanSalida
+    uso: UsoPlan
+    mejoras: list[MejoraPosible]
+    puede_pagar: bool         # el servidor tiene MercadoPago configurado
+    compra_pendiente: uuid.UUID | None
+
+
+class PedirMejora(BaseModel):
+    plan: str = Field(min_length=1, max_length=20)
+
+
+class MejoraCreada(BaseModel):
+    compra_id: uuid.UUID
+    url_pago: str
+    importe: int
+    prueba: bool
+
+
+class CompraSalida(BaseModel):
+    id: uuid.UUID
+    plan_desde: str
+    plan_hasta: str
+    importe: int
+    estado: str
+    detalle_estado: str | None
+    creada: datetime
+    acreditada: datetime | None

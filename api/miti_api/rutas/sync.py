@@ -12,7 +12,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from .. import cripto
+from .. import cripto, planes
 from ..config import ajustes
 from ..db import sesion
 from ..esquemas import (
@@ -317,6 +317,21 @@ async def sync_push(
                             estado="conflicto",
                             motivo="producto_inactivo",
                             detalle={"inactivos": inactivos},
+                        )
+                    )
+                    continue
+
+                # Tope del plan: una venta hecha sin señal que lo pasa queda en
+                # conflicto, para que el vendedor vea por qué no entró.
+                try:
+                    await planes.verificar_ventas(s, ctx.campana)
+                except HTTPException as e:
+                    resultados.append(
+                        SyncOperacionResultado(
+                            id=op_id,
+                            estado="conflicto",
+                            motivo="limite_plan",
+                            detalle={"mensaje": e.detail},
                         )
                     )
                     continue

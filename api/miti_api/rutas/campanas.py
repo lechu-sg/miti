@@ -7,8 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from .. import cripto
-from ..config import ajustes
+from .. import cripto, planes
 from ..db import sesion
 from ..esquemas import (
     AvisoSalida,
@@ -54,6 +53,8 @@ def _salida(campana: Campana, integrante: Integrante) -> dict:
         "creada": campana.creada,
         "mi_rol": integrante.rol,
         "mi_estado": integrante.estado,
+        "suspendida": campana.suspendida is not None,
+        "motivo_suspension": campana.motivo_suspension,
     }
 
 
@@ -220,6 +221,8 @@ async def cambiar_estado(
         raise HTTPException(
             status.HTTP_409_CONFLICT, f"no se puede pasar de «{actual}» a «{datos.estado}»"
         )
+    if datos.estado == "activa":
+        await planes.verificar_al_activar(s, ctx.campana)
     if datos.estado == "activa" and ctx.campana.tipo == "rifa":
         if not ctx.campana.config:
             raise HTTPException(status.HTTP_409_CONFLICT, "la rifa no tiene configuración")
@@ -275,19 +278,7 @@ async def invitar(
     if existente is not None and existente.estado == "expulsado":
         raise HTTPException(status.HTTP_409_CONFLICT, "esa persona fue expulsada de la campaña")
 
-    activos = (
-        await s.execute(
-            select(Integrante).where(
-                Integrante.campana_id == ctx.campana.id,
-                Integrante.estado.in_(("activo", "invitado")),
-            )
-        )
-    ).scalars().all()
-    if ctx.campana.plan == "gratis" and len(activos) >= ajustes().limite_gratis_integrantes:
-        raise HTTPException(
-            status.HTTP_402_PAYMENT_REQUIRED,
-            f"el plan gratis llega hasta {ajustes().limite_gratis_integrantes} integrantes",
-        )
+    await planes.verificar_integrantes(s, ctx.campana)
 
     if existente is not None:  # había rechazado o se había ido: vuelve a quedar invitado
         existente.estado = "invitado"

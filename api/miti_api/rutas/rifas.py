@@ -11,7 +11,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from .. import cripto
-from ..config import ajustes
 from ..db import sesion
 from ..esquemas import (
     CompradorSalida,
@@ -242,33 +241,8 @@ async def registrar_venta(
     await asegurar_numeros(s, ctx.campana)
     await limpiar_reservas_vencidas(s, ctx.campana.id)
 
-    # Control de límites del plan gratis
-    if ctx.campana.plan == "gratis":
-        cant_ventas = (
-            await s.execute(
-                select(func.count()).select_from(Venta).where(
-                    Venta.campana_id == ctx.campana.id, Venta.estado == "confirmada"
-                )
-            )
-        ).scalar_one()
-        if cant_ventas >= ajustes().limite_gratis_ventas:
-            raise HTTPException(
-                status.HTTP_402_PAYMENT_REQUIRED,
-                f"el plan gratis admite hasta {ajustes().limite_gratis_ventas} ventas",
-            )
-
-        cant_vendidos = (
-            await s.execute(
-                select(func.count()).select_from(Numero).where(
-                    Numero.campana_id == ctx.campana.id, Numero.estado == "vendido"
-                )
-            )
-        ).scalar_one()
-        if cant_vendidos + len(datos.numeros) > ajustes().limite_gratis_numeros:
-            raise HTTPException(
-                status.HTTP_402_PAYMENT_REQUIRED,
-                f"el plan gratis admite hasta {ajustes().limite_gratis_numeros} números vendidos",
-            )
+    # El tope de una rifa es el tamaño del talonario, que se controla al activarla
+    # (planes.verificar_al_activar): acá no se limita la cantidad de ventas.
 
     # Bloquear los números pedidos para validar y evitar ventas simultáneas
     nums_bloqueados = (

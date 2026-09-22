@@ -12,6 +12,18 @@ def _leer(ruta: str | None) -> str:
     return Path(ruta).read_text(encoding="utf-8").strip()
 
 
+def _pares(texto: str) -> dict[str, str]:
+    """Lee líneas CLAVE=valor, ignorando vacías y comentarios."""
+    datos: dict[str, str] = {}
+    for linea in texto.splitlines():
+        linea = linea.strip()
+        if not linea or linea.startswith("#") or "=" not in linea:
+            continue
+        nombre, valor = linea.split("=", 1)
+        datos[nombre.strip()] = valor.strip()
+    return datos
+
+
 class Ajustes(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="MITI_", extra="ignore")
 
@@ -37,13 +49,14 @@ class Ajustes(BaseSettings):
     # Direcciones de prueba: se registran pero no se mandan (evita rebotes).
     dominios_sin_envio: str = "pruebas.miti.sole.ar"
     edad_minima: int = 13
-    limite_gratis_integrantes: int = 5
-    limite_gratis_numeros: int = 100
-    limite_gratis_ventas: int = 20
     carpeta_archivos: str = "/srv/miti/data/archivos"
     # Credenciales de Firebase para las notificaciones push. Si el archivo no
     # está, el envío queda en modo registro y la app no se cae.
     firebase_credenciales: str = "/run/secrets/firebase"
+    # Archivo con MP_ACCESS_TOKEN y MP_WEBHOOK_SECRET de MercadoPago (§11).
+    mercadopago_archivo: str | None = None
+    # Dirección pública del servidor: la usan el webhook y las páginas de vuelta.
+    url_publica: str = "https://miti.sole.ar"
 
     @property
     def url_db(self) -> str:
@@ -55,18 +68,22 @@ class Ajustes(BaseSettings):
 
     @functools.cached_property
     def claves(self) -> dict[str, str]:
-        texto = _leer(self.claves_archivo)
-        datos: dict[str, str] = {}
-        for linea in texto.splitlines():
-            linea = linea.strip()
-            if not linea or linea.startswith("#") or "=" not in linea:
-                continue
-            nombre, valor = linea.split("=", 1)
-            datos[nombre.strip()] = valor.strip()
+        datos = _pares(_leer(self.claves_archivo))
         for obligatoria in ("CLAVE_MAESTRA", "CLAVE_JWT"):
             if obligatoria not in datos:
                 raise RuntimeError(f"falta {obligatoria} en el archivo de claves")
         return datos
+
+    @property
+    def mercadopago(self) -> dict[str, str]:
+        """Credenciales de MercadoPago; vacío si todavía no se cargaron.
+
+        Se lee en cada uso (no se guarda en memoria) para que cambiar el token
+        de prueba por el de producción no requiera reiniciar nada más que el archivo.
+        """
+        if not self.mercadopago_archivo or not Path(self.mercadopago_archivo).exists():
+            return {}
+        return _pares(Path(self.mercadopago_archivo).read_text(encoding="utf-8"))
 
     @property
     def es_produccion(self) -> bool:

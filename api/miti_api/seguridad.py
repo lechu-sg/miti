@@ -6,7 +6,7 @@ import uuid
 from datetime import UTC, datetime, timedelta
 
 import jwt
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -65,6 +65,8 @@ async def usuario_actual(
     usuario = await s.get(Usuario, uuid.UUID(cuerpo["sub"]))
     if usuario is None or usuario.baja is not None:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "la cuenta no está activa")
+    if usuario.bloqueado is not None:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "tu cuenta está bloqueada: escribinos a miti@sole.ar")
     return usuario
 
 
@@ -83,6 +85,7 @@ class Contexto:
 
 async def contexto_campana(
     campana_id: uuid.UUID,
+    pedido: Request,
     usuario: Usuario = Depends(usuario_actual),
     s: AsyncSession = Depends(sesion),
 ) -> Contexto:
@@ -99,6 +102,13 @@ async def contexto_campana(
     # Un invitado que todavía no aceptó ve la campaña, pero nada de adentro.
     if integrante is None or integrante.estado not in ("activo", "invitado"):
         raise HTTPException(status.HTTP_404_NOT_FOUND, "la campaña no existe")
+    # Suspendida desde el panel: se puede mirar y exportar, pero no cambiar nada.
+    if campana.suspendida is not None and pedido.method not in ("GET", "HEAD"):
+        raise HTTPException(
+            status.HTTP_423_LOCKED,
+            "la campaña está suspendida"
+            + (f": {campana.motivo_suspension}" if campana.motivo_suspension else ""),
+        )
     return Contexto(campana, integrante, usuario)
 
 

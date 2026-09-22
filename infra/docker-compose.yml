@@ -70,7 +70,8 @@ services:
       MITI_CLAVES_ARCHIVO: /run/secrets/claves
       MITI_SMTP_ARCHIVO: /run/secrets/smtp
       MITI_FIREBASE_CREDENCIALES: /run/secrets/firebase
-    secrets: [db_password, claves, smtp, firebase]
+      MITI_MERCADOPAGO_ARCHIVO: /run/secrets/mercadopago
+    secrets: [db_password, claves, smtp, firebase, mercadopago]
     volumes:
       - /srv/miti/data/archivos:/srv/miti/data/archivos
     depends_on:
@@ -89,6 +90,9 @@ secrets:
   # sea el de ejemplo, los envíos quedan en el registro y la API anda igual.
   firebase:
     file: /srv/miti/secrets/firebase.json
+  # MP_ACCESS_TOKEN y MP_WEBHOOK_SECRET. Vacío = sin cobro (la mejora contesta 503).
+  mercadopago:
+    file: /srv/miti/secrets/mercadopago.env
 
 networks:
   borde:

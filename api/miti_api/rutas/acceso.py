@@ -147,6 +147,10 @@ async def verificar(datos: Verificar, s: AsyncSession = Depends(sesion)) -> Toke
         fila.usado = datetime.now(UTC)
         await s.commit()
         raise HTTPException(status.HTTP_403_FORBIDDEN, "la cuenta está dada de baja")
+    elif usuario.bloqueado is not None:
+        fila.usado = datetime.now(UTC)
+        await s.commit()
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "tu cuenta está bloqueada: escribinos a miti@sole.ar")
 
     fila.usado = datetime.now(UTC)
     usuario.ultimo_acceso = datetime.now(UTC)
@@ -180,7 +184,7 @@ async def refrescar(datos: Refrescar, s: AsyncSession = Depends(sesion)) -> Toke
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "la sesión venció")
 
     usuario = await s.get(Usuario, fila.usuario_id)
-    if usuario is None or usuario.baja is not None:
+    if usuario is None or usuario.baja is not None or usuario.bloqueado is not None:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "la cuenta no está activa")
 
     nuevo = await crear_refresco(s, fila.usuario_id, fila.dispositivo)

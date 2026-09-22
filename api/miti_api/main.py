@@ -18,6 +18,7 @@ from .rutas import (
     exportar,
     gastos,
     liquidacion,
+    pagos,
     productos,
     rifas,
     sorteos,
@@ -58,6 +59,7 @@ app.include_router(gastos.ruteador)
 app.include_router(sorteos.ruteador)
 app.include_router(exportar.ruteador)
 app.include_router(dispositivos.ruteador)
+app.include_router(pagos.ruteador)
 
 
 @app.get("/salud", tags=["servicio"])
