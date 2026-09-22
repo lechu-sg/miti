@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block titulo %}Salud{% endblock %}
+{% block cuerpo %}
+<h1>Salud del sistema</h1>
+
+<h2>Copias, restauraciones y limpieza</h2>
+<div class="tabla"><table>
+  <tr><th>Tarea</th><th>Resultado de la última vez</th></tr>
+  {% for e in estados %}
+  <tr><td>{{ e.nombre }}</td><td><span class="chip {{ "ok" if e.ok else "mal" }}">{{ "OK" if e.ok else "ERROR" }}</span> <span class="suave">{{ e.linea }}</span></td></tr>
+  {% else %}<tr><td colspan="2" class="suave">No se encontró la carpeta de estado (/srv/miti/backups/estado).</td></tr>{% endfor %}
+</table></div>
+
+<div class="grilla2">
+  <div>
+    <h2>Correo, últimas 24 horas</h2>
+    <table><tr><th>Estado</th><th class="n">Envíos</th></tr>
+    {% for estado, n in correo %}<tr><td>{{ estado }}</td><td class="n">{{ n }}</td></tr>
+    {% else %}<tr><td colspan="2" class="suave">Sin envíos.</td></tr>{% endfor %}
+    </table>
+  </div>
+  <div>
+    <h2>Espacio</h2>
+    <table>
+      <tr><td>Base de datos</td><td class="n">{{ tam_db }}</td></tr>
+      <tr><td>Disco libre</td><td class="n">{% if disco %}{{ "%.1f" | format(disco.libre) }} de {{ "%.0f" | format(disco.total) }} GB{% else %}—{% endif %}</td></tr>
+    </table>
+  </div>
+</div>
+
+<h2>Pagos para revisar</h2>
+<div class="tabla"><table>
+  <tr><th>Fecha</th><th>Campaña</th><th class="n">Importe</th><th>Estado</th><th>Detalle</th></tr>
+  {% for k in compras_trabadas %}
+  <tr><td>{{ k.creada | fecha }}</td><td><a href="/admin/campanas/{{ k.campana_id }}">ver</a></td>
+      <td class="n">{{ k.importe | plata }}</td><td>{{ k.estado }}</td><td class="suave">{{ k.detalle_estado }}</td></tr>
+  {% else %}<tr><td colspan="5" class="suave">Nada raro: ningún pago con importe distinto ni reintegrado.</td></tr>{% endfor %}
+</table></div>
+{% endblock %}

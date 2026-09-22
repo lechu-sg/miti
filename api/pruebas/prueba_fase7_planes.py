@@ -105,7 +105,7 @@ probar("Grande no limita las ventas", None, por_codigo.get("grande", {}).get("li
 print("\n== 2. Talonario: se controla al activar ==")
 grande = rifa(t["Ana"], "Talonario de 200", 199)
 st, r = llamar("PATCH", f"/campanas/{grande}/estado", t["Ana"], {"estado": "activa"})
-probar("activar una rifa de 200 números en gratis → 402", 402, st)
+probar("activar una rifa de 200 números en gratis -> 402", 402, st)
 probar("el mensaje dice el tamaño", True, "200" in detalle(r))
 
 st, r = llamar("GET", f"/campanas/{grande}/plan", t["Ana"])
@@ -118,12 +118,12 @@ probar("pasar a Grande cuesta $25.000 desde gratis", 2_500_000,
 
 chica = rifa(t["Ana"], "Talonario de 100", 99)
 st, _ = llamar("PATCH", f"/campanas/{chica}/estado", t["Ana"], {"estado": "activa"})
-probar("activar una rifa de 100 números en gratis → 200", 200, st)
+probar("activar una rifa de 100 números en gratis -> 200", 200, st)
 
 print("\n== 3. Una sola campaña gratis en curso por creador ==")
 otra = rifa(t["Ana"], "Segunda rifa", 9)
 st, r = llamar("PATCH", f"/campanas/{otra}/estado", t["Ana"], {"estado": "activa"})
-probar("activar una segunda campaña gratis → 402", 402, st)
+probar("activar una segunda campaña gratis -> 402", 402, st)
 probar("el mensaje explica que ya tiene otra", True, "ya tenés otra" in detalle(r))
 
 print("\n== 4. Ventas de una rifa: ya no corta en 20 ==")
@@ -132,7 +132,7 @@ st, _ = llamar("POST", f"/campanas/{chica}/ventas", t["Ana"], {
     "comprador": {"nombre": "Comprador grande", "telefono": "1100000000"},
     "destino_cobro": "efectivo",
 })
-probar("vender 25 números de una en gratis → 201", 201, st)
+probar("vender 25 números de una en gratis -> 201", 201, st)
 cortadas = 0
 for i in range(25, 47):
     st, _ = llamar("POST", f"/campanas/{chica}/ventas", t["Ana"], {
@@ -148,7 +148,7 @@ for n in ["Beto", "Caro", "Dani", "Eli"]:
     st, _ = llamar("POST", f"/campanas/{chica}/invitaciones", t["Ana"], {"email": emails[n]})
     probar(f"invitar a {n}", 201, st)
 st, r = llamar("POST", f"/campanas/{chica}/invitaciones", t["Ana"], {"email": emails["Fede"]})
-probar("el sexto integrante → 402", 402, st)
+probar("el sexto integrante -> 402", 402, st)
 probar("el mensaje dice el tope", True, "5 integrantes" in detalle(r))
 
 print("\n== 6. Productos: hasta 20 ventas ==")
@@ -171,7 +171,7 @@ st, r = llamar("POST", f"/campanas/{prod_camp}/ventas/productos", t["Gabi"], {
     "comprador": {"nombre": "Cliente 21", "telefono": "1100000000"},
     "destino_cobro": "efectivo", "entrega": "pedido",
 })
-probar("la venta 21 → 402", 402, st)
+probar("la venta 21 -> 402", 402, st)
 
 print("\n== 7. Mejora de plan ==")
 st, r = llamar("POST", f"/campanas/{chica}/mejora", t["Beto"], {"plan": "campana"})
@@ -179,7 +179,7 @@ probar("un integrante que no es admin no puede pedir la mejora", 403, st)
 st, r = llamar("POST", f"/campanas/{chica}/mejora", t["Ana"], {"plan": "gratis"})
 probar("no se puede 'mejorar' al mismo plan", 409, st)
 st, r = llamar("POST", f"/campanas/{chica}/mejora", t["Ana"], {"plan": "inexistente"})
-probar("un plan que no existe → 404", 404, st)
+probar("un plan que no existe -> 404", 404, st)
 
 st, estado = llamar("GET", f"/campanas/{chica}/plan", t["Ana"])
 if estado.get("puede_pagar"):
@@ -191,7 +191,7 @@ if estado.get("puede_pagar"):
     probar("la compra queda pendiente hasta que se pague", "pendiente", compra.get("estado"))
 else:
     st, m = llamar("POST", f"/campanas/{chica}/mejora", t["Ana"], {"plan": "campana"})
-    probar("sin credenciales de MercadoPago → 503 con explicación", 503, st)
+    probar("sin credenciales de MercadoPago -> 503 con explicación", 503, st)
 
 print("\n== 8. Webhook ==")
 st, r = llamar("POST", "/pagos/mercadopago/webhook?type=merchant_order&data.id=1", cuerpo={})

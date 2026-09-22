@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block titulo %}Entrar{% endblock %}
+{% block cuerpo %}
+<div style="max-width:380px;margin:8vh auto 0">
+  <div class="marca" style="font-size:34px;font-weight:800;letter-spacing:.16em">MITI</div>
+  <p class="suave" style="margin-top:0">Panel de administración</p>
+  {% if error %}<div class="aviso">{{ error }}</div>{% endif %}
+
+  {% if paso == "email" %}
+  <form method="post" action="/admin/entrar" class="caja">
+    <label>Tu email<br><input type="email" name="email" required autocomplete="email" style="width:100%"></label>
+    <p><button type="submit">Mandame el código</button></p>
+  </form>
+
+  {% elif paso == "codigo" %}
+  <form method="post" action="/admin/codigo" class="caja">
+    <p>Si <strong>{{ email }}</strong> es administrador, le llegó un código de 6 dígitos.</p>
+    <input type="hidden" name="email" value="{{ email }}">
+    <label>Código<br><input type="text" name="codigo" inputmode="numeric" pattern="[0-9]{6}" maxlength="6"
+      required autocomplete="one-time-code" style="width:100%;font-size:22px;letter-spacing:.3em"></label>
+    <p><button type="submit">Seguir</button></p>
+  </form>
+
+  {% elif paso == "enrolar" %}
+  <div class="caja">
+    <p><strong>Primera vez:</strong> activá el segundo factor.</p>
+    <ol>
+      <li>Abrí tu app autenticadora (Google Authenticator, Aegis, 1Password…).</li>
+      <li>Agregá una cuenta nueva <em>con clave de configuración</em> y escribí esta clave:</li>
+    </ol>
+    <p style="text-align:center"><code style="font-size:18px;letter-spacing:.08em">{{ secreto }}</code></p>
+    <p class="suave" style="font-size:13px">Nombre: Miti · tipo: basada en el tiempo. Guardá también esta clave en tu gestor de contraseñas: si perdés el celular, es la única forma de volver a entrar.</p>
+    <form method="post" action="/admin/enrolar">
+      <label>Código que muestra la app<br><input type="text" name="totp" inputmode="numeric" maxlength="7"
+        required autocomplete="one-time-code" style="width:100%;font-size:22px;letter-spacing:.3em"></label>
+      <p><button type="submit">Activar y entrar</button></p>
+    </form>
+  </div>
+
+  {% elif paso == "totp" %}
+  <form method="post" action="/admin/totp" class="caja">
+    <label>Código de tu app autenticadora<br><input type="text" name="totp" inputmode="numeric" maxlength="7"
+      required autocomplete="one-time-code" autofocus style="width:100%;font-size:22px;letter-spacing:.3em"></label>
+    <p><button type="submit">Entrar</button></p>
+  </form>
+  {% endif %}
+</div>
+{% endblock %}

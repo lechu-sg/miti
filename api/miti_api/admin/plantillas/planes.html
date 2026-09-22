@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block titulo %}Planes{% endblock %}
+{% block cuerpo %}
+<h1>Planes y límites</h1>
+{% if guardado %}<div class="bien">Plan <strong>{{ guardado }}</strong> guardado. Rige desde ya, sin sacar versión.</div>{% endif %}
+<p class="suave">Precio en pesos, sin centavos. Un límite vacío es <strong>sin límite</strong>. El talonario es la cantidad de números de la rifa; las ventas cuentan sólo en campañas de productos. Bajar un límite no le saca nada a quien ya lo usa: se controla al activar, invitar o vender.</p>
+<div class="grilla2">
+{% for p in lista %}
+<form class="caja" method="post" action="/admin/planes/{{ p.codigo }}">
+  <input type="hidden" name="csrf" value="{{ adm.csrf }}">
+  <h2 style="margin-top:0">{{ p.codigo }}</h2>
+  <p><label>Nombre<br><input type="text" name="nombre" value="{{ p.nombre }}" style="width:100%"></label></p>
+  <p><label>Precio ($)<br><input type="number" name="precio" min="0" step="1" value="{{ p.precio // 100 }}" style="width:100%"></label></p>
+  <p><label>Integrantes<br><input type="number" name="limite_integrantes" min="1" value="{{ p.limite_integrantes if p.limite_integrantes is not none }}" style="width:100%"></label></p>
+  <p><label>Números del talonario<br><input type="number" name="limite_numeros" min="1" value="{{ p.limite_numeros if p.limite_numeros is not none }}" style="width:100%"></label></p>
+  <p><label>Ventas (productos)<br><input type="number" name="limite_ventas" min="1" value="{{ p.limite_ventas if p.limite_ventas is not none }}" style="width:100%"></label></p>
+  <p><label>Campañas en curso por creador<br><input type="number" name="limite_campanas_activas" min="1" value="{{ p.limite_campanas_activas if p.limite_campanas_activas is not none }}" style="width:100%"></label></p>
+  <p><label><input type="checkbox" name="publicidad" {{ "checked" if p.publicidad }}> Muestra publicidad</label></p>
+  <button type="submit">Guardar</button>
+  <p class="suave" style="font-size:12px">Actualizado {{ p.actualizado | fecha }}</p>
+</form>
+{% endfor %}
+</div>
+{% endblock %}

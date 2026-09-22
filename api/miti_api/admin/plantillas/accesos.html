@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block titulo %}Accesos{% endblock %}
+{% block cuerpo %}
+<h1>Accesos al panel</h1>
+<p class="suave">Los últimos 200 ingresos, intentos fallidos y acciones.</p>
+<div class="tabla"><table>
+  <tr><th>Cuándo</th><th>Acción</th><th>IP</th><th>Detalle</th></tr>
+  {% for a in lista %}
+  <tr><td>{{ a.cuando | fecha }}</td>
+      <td>{% if "fallido" in a.accion %}<span class="chip mal">{{ a.accion }}</span>{% else %}{{ a.accion }}{% endif %}</td>
+      <td>{{ a.ip or "—" }}</td><td class="suave" style="font-size:13px">{{ a.detalle | tojson if a.detalle else "" }}</td></tr>
+  {% endfor %}
+</table></div>
+{% endblock %}

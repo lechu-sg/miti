@@ -10,6 +10,7 @@ from sqlalchemy import text
 
 from .config import ajustes
 from .db import Sesion
+from .admin import rutas as admin_rutas
 from .rutas import (
     acceso,
     campanas,
@@ -60,6 +61,7 @@ app.include_router(sorteos.ruteador)
 app.include_router(exportar.ruteador)
 app.include_router(dispositivos.ruteador)
 app.include_router(pagos.ruteador)
+app.include_router(admin_rutas.ruteador)
 
 
 @app.get("/salud", tags=["servicio"])

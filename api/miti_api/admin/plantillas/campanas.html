@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block titulo %}Campañas{% endblock %}
+{% block cuerpo %}
+<h1>Campañas</h1>
+<form class="linea" method="get" action="/admin/campanas">
+  <input type="search" name="q" value="{{ q }}" placeholder="Nombre de la campaña" style="flex:1">
+  <select name="estado">
+    <option value="">Todos los estados</option>
+    {% for e in ["borrador", "activa", "cerrada", "sorteada", "liquidada", "archivada"] %}
+    <option value="{{ e }}" {{ "selected" if e == estado }}>{{ e }}</option>{% endfor %}
+  </select>
+  <button type="submit" class="sec">Buscar</button>
+</form>
+<br>
+<div class="tabla"><table>
+  <tr><th>Nombre</th><th>Tipo</th><th>Estado</th><th>Plan</th><th>Creada</th></tr>
+  {% for c in lista %}
+  <tr>
+    <td><a href="/admin/campanas/{{ c.id }}">{{ c.nombre }}</a>
+      {% if c.suspendida %} <span class="chip mal">suspendida</span>{% endif %}</td>
+    <td>{{ c.tipo }}</td><td>{{ c.estado }}</td><td>{{ c.plan }}</td><td>{{ c.creada | fecha }}</td>
+  </tr>
+  {% else %}<tr><td colspan="5" class="suave">Sin resultados.</td></tr>{% endfor %}
+</table></div>
+{% endblock %}

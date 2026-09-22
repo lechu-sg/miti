@@ -74,6 +74,8 @@ services:
     secrets: [db_password, claves, smtp, firebase, mercadopago]
     volumes:
       - /srv/miti/data/archivos:/srv/miti/data/archivos
+      # El panel muestra el resultado de copias, restauraciones y limpieza.
+      - /srv/miti/backups/estado:/srv/miti/backups/estado:ro
     depends_on:
       db:
         condition: service_healthy

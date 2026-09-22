@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block titulo %}Usuarios{% endblock %}
+{% block cuerpo %}
+<h1>Usuarios</h1>
+<form class="linea" method="get" action="/admin/usuarios">
+  <input type="search" name="q" value="{{ q }}" placeholder="Nombre, o el email exacto" style="flex:1">
+  <button type="submit" class="sec">Buscar</button>
+</form>
+<p class="suave" style="font-size:13px">Los emails están cifrados: por email sólo se encuentra la dirección completa.</p>
+<div class="tabla"><table>
+  <tr><th>Nombre</th><th>Email</th><th>Alta</th><th>Último acceso</th><th class="n">Campañas</th><th>Estado</th><th></th></tr>
+  {% for f in lista %}{% set u = f.u %}
+  <tr>
+    <td>{{ u.nombre }}</td><td>{{ f.email }}</td><td>{{ u.creado | fecha }}</td><td>{{ u.ultimo_acceso | fecha }}</td>
+    <td class="n">{{ f.campanas }}</td>
+    <td>{% if u.baja %}<span class="chip">de baja</span>
+        {% elif u.bloqueado %}<span class="chip mal">bloqueado</span><div class="suave" style="font-size:13px">{{ u.motivo_bloqueo }}</div>
+        {% else %}<span class="chip ok">activo</span>{% endif %}</td>
+    <td>{% if not u.baja and u.id != adm.usuario.id %}
+      <form class="linea" method="post" action="/admin/usuarios/{{ u.id }}/bloqueo">
+        <input type="hidden" name="csrf" value="{{ adm.csrf }}">
+        {% if u.bloqueado %}
+          <input type="hidden" name="accion" value="desbloquear"><button class="sec" type="submit">Desbloquear</button>
+        {% else %}
+          <input type="hidden" name="accion" value="bloquear">
+          <input type="text" name="motivo" placeholder="Motivo" required style="width:140px">
+          <button type="submit">Bloquear</button>
+        {% endif %}
+      </form>{% endif %}</td>
+  </tr>
+  {% else %}<tr><td colspan="7" class="suave">Sin resultados.</td></tr>{% endfor %}
+</table></div>
+{% endblock %}

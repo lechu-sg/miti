@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block titulo %}{{ c.nombre }}{% endblock %}
+{% block cuerpo %}
+<p><a href="/admin/campanas">← Campañas</a></p>
+<h1>{{ c.nombre }}</h1>
+{% if c.suspendida %}<div class="aviso"><strong>Suspendida</strong> desde {{ c.suspendida | fecha }}: {{ c.motivo_suspension }}</div>{% endif %}
+
+<div class="tarjetas">
+  <div class="tarjeta"><div class="nota">Estado</div><div class="cifra" style="font-size:22px">{{ c.estado }}</div>
+    <div class="nota">{{ c.tipo }} · creada {{ c.creada | fecha }}</div></div>
+  <div class="tarjeta"><div class="nota">Plan</div><div class="cifra" style="font-size:22px">{{ c.plan }}</div></div>
+  <div class="tarjeta"><div class="nota">Integrantes</div><div class="cifra">{{ integrantes | length }}</div>
+    <div class="nota">Creador: {{ creador.nombre if creador else "—" }}</div></div>
+  <div class="tarjeta"><div class="nota">Ventas</div><div class="cifra">{{ ventas[0] }}</div>
+    <div class="nota">{{ ventas[1] | plata }}</div></div>
+</div>
+
+<div class="grilla2" style="margin-top:16px">
+  <form class="caja" method="post" action="/admin/campanas/{{ c.id }}/suspension">
+    <input type="hidden" name="csrf" value="{{ adm.csrf }}">
+    {% if c.suspendida %}
+      <input type="hidden" name="accion" value="reactivar">
+      <p>Los integrantes vuelven a poder cargar ventas y movimientos.</p>
+      <button type="submit">Reactivar</button>
+    {% else %}
+      <input type="hidden" name="accion" value="suspender">
+      <p>Suspendida, se puede mirar y exportar pero nadie puede cambiar nada.</p>
+      <p><input type="text" name="motivo" placeholder="Motivo (lo ven los integrantes)" required style="width:100%"></p>
+      <button type="submit">Suspender</button>
+    {% endif %}
+  </form>
+  <form class="caja" method="post" action="/admin/campanas/{{ c.id }}/plan">
+    <input type="hidden" name="csrf" value="{{ adm.csrf }}">
+    <p>Cambiar el plan a mano (regalo, corrección o reintegro). Queda registrado.</p>
+    <div class="linea">
+      <select name="plan">{% for p in planes %}<option value="{{ p.codigo }}" {{ "selected" if p.codigo == c.plan }}>{{ p.nombre }}</option>{% endfor %}</select>
+      <input type="text" name="motivo" placeholder="Motivo" required style="flex:1">
+      <button type="submit">Cambiar</button>
+    </div>
+  </form>
+</div>
+
+<h2>Compras de plan</h2>
+<div class="tabla"><table>
+  <tr><th>Fecha</th><th>De → a</th><th class="n">Importe</th><th>Estado</th><th>Pago MP</th><th>Detalle</th></tr>
+  {% for k in compras %}
+  <tr><td>{{ k.creada | fecha }}</td><td>{{ k.plan_desde }} → {{ k.plan_hasta }}</td><td class="n">{{ k.importe | plata }}</td>
+      <td>{{ k.estado }}</td><td>{{ k.pago_id or "—" }}</td><td class="suave">{{ k.detalle_estado or "" }}</td></tr>
+  {% else %}<tr><td colspan="6" class="suave">Ninguna.</td></tr>{% endfor %}
+</table></div>
+
+<h2>Integrantes</h2>
+<div class="tabla"><table>
+  <tr><th>Nombre</th><th>Rol</th><th>Estado</th></tr>
+  {% for i in integrantes %}<tr><td>{{ nombres.get(i.usuario_id, i.usuario_id) }}</td><td>{{ i.rol }}</td><td>{{ i.estado }}</td></tr>{% endfor %}
+</table></div>
+{% endblock %}

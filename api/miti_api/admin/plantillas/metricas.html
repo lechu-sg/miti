@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block titulo %}Métricas{% endblock %}
+{% block cuerpo %}
+<h1>Métricas</h1>
+<div class="tarjetas">
+  <div class="tarjeta"><div class="nota">Usuarios</div><div class="cifra">{{ t.usuarios }}</div>
+    <div class="nota">+{{ t.usuarios_7 }} en 7 días · {{ t.activos_30 }} entraron en 30 días</div></div>
+  <div class="tarjeta"><div class="nota">Campañas en curso</div><div class="cifra">{{ t.en_curso }}</div></div>
+  <div class="tarjeta"><div class="nota">Ventas en 30 días</div><div class="cifra">{{ t.ventas_30 }}</div>
+    <div class="nota">{{ t.recaudado_30 | plata }} recaudado por los grupos</div></div>
+  <div class="tarjeta"><div class="nota">Cobrado por planes</div><div class="cifra">{{ t.cobrado_planes | plata }}</div>
+    <div class="nota">{{ t.cobrado_planes_30 | plata }} en 30 días</div></div>
+</div>
+
+<div class="grilla2">
+  <div>
+    <h2>Campañas por estado</h2>
+    <table><tr><th>Estado</th><th class="n">Cantidad</th></tr>
+    {% for estado, n in por_estado %}<tr><td><a href="/admin/campanas?estado={{ estado }}">{{ estado }}</a></td><td class="n">{{ n }}</td></tr>{% endfor %}
+    </table>
+  </div>
+  <div>
+    <h2>En curso, por plan</h2>
+    <table><tr><th>Plan</th><th class="n">Cantidad</th></tr>
+    {% for plan, n in por_plan %}<tr><td>{{ plan }}</td><td class="n">{{ n }}</td></tr>
+    {% else %}<tr><td colspan="2" class="suave">Ninguna</td></tr>{% endfor %}
+    </table>
+  </div>
+</div>
+
+<h2>Últimos 14 días (UTC)</h2>
+<div class="tabla"><table>
+  <tr><th>Día</th><th class="n">Altas</th><th class="n">Campañas</th><th class="n">Ventas</th><th class="n">Cobrado por planes</th></tr>
+  {% for f in serie %}
+  <tr><td>{{ f.dia.strftime("%d/%m") }}</td><td class="n">{{ f.altas }}</td><td class="n">{{ f.campanas }}</td>
+      <td class="n">{{ f.ventas }}</td><td class="n">{{ f.cobros | plata }}</td></tr>
+  {% endfor %}
+</table></div>
+{% endblock %}

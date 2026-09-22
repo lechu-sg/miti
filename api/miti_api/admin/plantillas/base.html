@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>{% block titulo %}Panel{% endblock %} · Miti</title>
+<style>
+:root{
+  --papel:#FBF9F4;--hoja:#FFFFFF;--hundido:#F1ECE0;--tinta:#1E2A3A;--tinta-sobre:#FBF9F4;
+  --suave:#5F5A4E;--troquel:#CFC6B2;--sello:#B7372A;--sello-texto:#8E2A20;--ok:#2F7A57;--mostaza:#E3A72F;
+}
+@media (prefers-color-scheme:dark){:root{
+  --papel:#141A23;--hoja:#212A38;--hundido:#2B3647;--tinta:#F3EDE0;--tinta-sobre:#141A23;
+  --suave:#B9B2A1;--troquel:#5A6A80;--sello:#C94A36;--sello-texto:#F7A28F;--ok:#6CC39A;--mostaza:#F0B84A;
+}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--papel);color:var(--tinta);font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif}
+a{color:var(--sello-texto)}
+header{display:flex;gap:18px;align-items:center;flex-wrap:wrap;padding:14px 20px;border-bottom:2px dashed var(--troquel)}
+.marca{font-weight:800;letter-spacing:.16em;font-size:20px;text-decoration:none;color:var(--tinta)}
+nav{display:flex;gap:4px;flex-wrap:wrap;flex:1}
+nav a{padding:6px 12px;border-radius:999px;text-decoration:none;color:var(--tinta);border:1.5px solid transparent}
+nav a.activa{background:var(--tinta);color:var(--tinta-sobre)}
+nav a:hover{border-color:var(--tinta)}
+main{max-width:1100px;margin:0 auto;padding:22px 16px 60px}
+h1{font-size:26px;margin:0 0 16px;letter-spacing:.02em}
+h2{font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--suave);margin:28px 0 10px}
+.tarjetas{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}
+.tarjeta{background:var(--hoja);border:1.5px solid var(--tinta);border-radius:6px;padding:14px}
+.tarjeta .cifra{font-size:28px;font-weight:800;font-variant-numeric:tabular-nums}
+.tarjeta .nota{color:var(--suave);font-size:13px}
+table{width:100%;border-collapse:collapse;background:var(--hoja);border:1.5px solid var(--tinta);border-radius:6px;overflow:hidden}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px dashed var(--troquel);vertical-align:top}
+th{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--suave);background:var(--hundido)}
+td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
+.tabla{overflow-x:auto}
+input,select,button{font:inherit;color:var(--tinta)}
+input[type=text],input[type=email],input[type=search],input[type=number],select{
+  background:var(--hoja);border:1.5px solid var(--tinta);border-radius:6px;padding:8px 10px;min-width:0}
+button{background:var(--sello);color:#fff;border:0;border-radius:6px;padding:9px 16px;font-weight:700;cursor:pointer}
+button.sec{background:transparent;color:var(--tinta);border:1.5px solid var(--tinta)}
+form.linea{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.chip{display:inline-block;padding:1px 9px;border-radius:999px;border:1.5px solid var(--tinta);font-size:12px}
+.chip.ok{border-color:var(--ok);color:var(--ok)}
+.chip.mal{background:var(--sello);border-color:var(--sello);color:#fff}
+.aviso{border:2px solid var(--sello);border-radius:6px;padding:10px 14px;background:var(--hoja);margin-bottom:14px}
+.bien{border:2px solid var(--ok);border-radius:6px;padding:10px 14px;background:var(--hoja);margin-bottom:14px}
+.suave{color:var(--suave)}
+.caja{background:var(--hoja);border:1.5px solid var(--tinta);border-radius:6px;padding:16px;margin-bottom:12px}
+.grilla2{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px}
+code{background:var(--hundido);padding:2px 6px;border-radius:4px;font-size:14px}
+</style>
+</head>
+<body>
+{% if adm %}
+<header>
+  <a class="marca" href="/admin">MITI</a>
+  <nav>
+    <a href="/admin" class="{{ 'activa' if seccion=='metricas' }}">Métricas</a>
+    <a href="/admin/usuarios" class="{{ 'activa' if seccion=='usuarios' }}">Usuarios</a>
+    <a href="/admin/campanas" class="{{ 'activa' if seccion=='campanas' }}">Campañas</a>
+    <a href="/admin/planes" class="{{ 'activa' if seccion=='planes' }}">Planes</a>
+    <a href="/admin/salud" class="{{ 'activa' if seccion=='salud' }}">Salud</a>
+    <a href="/admin/accesos" class="{{ 'activa' if seccion=='accesos' }}">Accesos</a>
+  </nav>
+  <form method="post" action="/admin/salir">
+    <input type="hidden" name="csrf" value="{{ adm.csrf }}">
+    <button class="sec" type="submit">Salir</button>
+  </form>
+</header>
+{% endif %}
+<main>{% block cuerpo %}{% endblock %}</main>
+</body>
+</html>
