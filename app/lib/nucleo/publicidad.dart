@@ -111,7 +111,7 @@ class _BannerMitiState extends State<BannerMiti> {
   Future<void> _cargar() async {
     if (!widget.mostrar || _anuncio != null || !Publicidad._iniciada) return;
     final ancho = MediaQuery.of(context).size.width.truncate();
-    final tamano = await AdSize.getCurrentOrientationAnchoredAdaptiveBannerAdSize(ancho);
+    final tamano = await AdSize.getLargeAnchoredAdaptiveBannerAdSize(ancho);
     if (tamano == null || !mounted) return;
     final anuncio = BannerAd(
       adUnitId: Publicidad._banner,

@@ -368,17 +368,26 @@ miti/
 | **Campaña** | 1 campaña · hasta 15 integrantes · 1.000 números o 300 ventas | No | ≈ **US$ 10** en pesos |
 | **Campaña Grande** | 1 campaña · hasta 50 integrantes · 10.000 números · ventas sin límite | No | ≈ **US$ 25** en pesos |
 
+**Cómo se cuentan los límites** (cerrado el 2026-09-22, implementado en `api/miti_api/planes.py`):
+- **Integrantes:** activos más invitados, contando al administrador.
+- **Números:** el **tamaño del talonario** (hasta − desde + 1), no los vendidos. Se controla **al activar** la rifa: se puede armar en borrador, ver que no alcanza y mejorar el plan antes de salir a vender.
+- **Ventas:** solo en campañas de **productos**; las rifas no tienen tope de ventas, porque su tope es el talonario.
+- **Campaña activa (gratis):** cada creador puede tener **una** campaña gratis en curso (activa, cerrada o sorteada). Las campañas pagas no ocupan ese lugar.
+- Pasar un límite devuelve **402** y la app ofrece mejorar el plan. Una venta hecha sin señal que lo pasa queda en conflicto `limite_plan`.
+- Precios y límites viven en la tabla `planes` y se editan desde el panel. Arrancaron en **$ 15.000** (Campaña) y **$ 25.000** (Campaña Grande).
+
 **Criterio del precio:** una campaña chica de 10 integrantes con 1.000 números suele recaudar mucho más de lo que cuesta el plan; el precio queda en torno al **1 % o menos** de lo recaudado. El precio en pesos se guarda en la configuración y se actualiza sin publicar una versión nueva.
 
 ### Cobro
 - Lo paga el **creador**, que puede cargarlo como **gasto** de la campaña: se reparte como cualquier otro.
-- **Mejora de plan:** al pasar un límite, se paga para **mejorar la campaña existente**; no hace falta crear otra.
+- **Mejora de plan:** al pasar un límite, se paga para **mejorar la campaña existente**; no hace falta crear otra. Se cobra **la diferencia** con el plan que ya tiene (de Campaña a Campaña Grande se paga lo que falta).
 - **Cómo se cobra:** MercadoPago **Checkout Pro**. La app abre el navegador y el **webhook** habilita el plan; la confirmación siempre la valida el servidor contra la API de MercadoPago.
 - **Facturación:** fuera de Miti (el dueño factura por su cuenta).
 
 ### Publicidad
 - **AdMob:** banner en listas y, como mucho, un intersticial al generar una imagen.
-- **[A VERIFICAR]** Las condiciones de AdMob para apps que **no están publicadas en una tienda**: puede limitar los anuncios.
+- **[A VERIFICAR]** Las condiciones de AdMob para apps que **no están publicadas en una tienda**: puede limitar los anuncios. Se integró igual (decisión del 2026-09-22), con los ID de prueba de Google hasta tener la cuenta.
+- Dónde aparece: banner en la lista de campañas (solo si ninguna campaña en curso es paga), en la grilla de números y en el muro; intersticial, como mucho uno cada 10 minutos, al compartir la imagen de disponibles o la de ganadores.
 
 ---
 

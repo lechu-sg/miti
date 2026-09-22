@@ -1,7 +1,17 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
+}
+
+// AdMob: el ID real de la app va en android/admob.properties (ADMOB_APP_ID=ca-app-pub-...~...).
+// Sin ese archivo se usa el ID de prueba de Google, que muestra anuncios de muestra.
+val admobAppId: String = Properties().run {
+    val archivo = rootProject.file("admob.properties")
+    if (archivo.exists()) archivo.inputStream().use { load(it) }
+    getProperty("ADMOB_APP_ID", "ca-app-pub-3940256099942544~3347511713")
 }
 
 // Las notificaciones push necesitan el google-services.json del proyecto de
@@ -34,13 +44,7 @@ android {
         versionCode = flutter.versionCode
         versionName = flutter.versionName
 
-        // AdMob: los ID reales van en android/admob.properties (ADMOB_APP_ID=ca-app-pub-...~...).
-        // Sin ese archivo se usa el ID de prueba de Google, que muestra anuncios de muestra.
-        val admob = java.util.Properties()
-        val archivoAdmob = rootProject.file("admob.properties")
-        if (archivoAdmob.exists()) archivoAdmob.inputStream().use { admob.load(it) }
-        manifestPlaceholders["admobAppId"] =
-            admob.getProperty("ADMOB_APP_ID", "ca-app-pub-3940256099942544~3347511713")
+        manifestPlaceholders["admobAppId"] = admobAppId
     }
 
     buildTypes {

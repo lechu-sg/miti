@@ -283,6 +283,34 @@ Antes de publicar una versión nueva, subí `version:` en `app/pubspec.yaml`. La
   - **Última APK publicada:** `https://miti.sole.ar/descargas/miti-0.8.1.apk`
     (también en `miti.apk`, SHA256 `5674b263db649aac5e5698a5b6e62edb0db7a05457bff8c594002f20acb6101a`).
 
+- **Fase 7 · Parte 2 (planes y límites, MercadoPago, panel de administración, AdMob): HECHA (v0.9.0), 22/09/2026.**
+  - **Migración 0011:** tabla `planes` (gratis / Campaña $15.000 / Campaña Grande $25.000),
+    `compras_campana`, `usuarios.bloqueado`, `campanas.suspendida`, `administradores` y
+    `admin_accesos`. Clave foránea `campanas.plan → planes.codigo`.
+  - **Límites** (`api/miti_api/planes.py`, un solo lugar): integrantes, **tamaño del talonario al
+    activar**, ventas sólo de productos, una campaña gratis en curso por creador. Contesta 402.
+    **Arreglo:** antes a las rifas gratis se les aplicaba el tope de 20 ventas.
+    Las ventas sin señal que pasan el tope quedan en conflicto `limite_plan`.
+  - **MercadoPago** (`api/miti_api/mercadopago.py`, `rutas/pagos.py`): `GET /planes`,
+    `GET /campanas/{id}/plan`, `POST /campanas/{id}/mejora` (sólo admin, cobra la diferencia),
+    `POST /pagos/mercadopago/webhook` (valida `x-signature` si hay secreto; el estado real se
+    trae siempre de la API de MP y se controla importe y moneda), `GET /campanas/{id}/compras/{id}`
+    (si sigue pendiente, busca el pago por la referencia externa) y `/pagos/vuelta`.
+    Credenciales en `/srv/miti/secrets/mercadopago.env` (`MP_ACCESS_TOKEN`, `MP_WEBHOOK_SECRET`);
+    hoy **vacío**: la mejora contesta 503 y la app muestra "el cobro todavía no está habilitado".
+  - **Panel `/admin`** (`api/miti_api/admin/`): código por email + TOTP (se enrola la primera vez),
+    cookie firmada de 2 h, CSRF, sin JavaScript, CSP estricta. Métricas, usuarios (bloquear),
+    campañas (suspender, cambiar plan a mano), planes (precios y límites en vivo), salud (copias,
+    restauraciones, limpieza, correo, espacio, pagos raros) y accesos (auditoría).
+    Alta: `docker compose run --rm --no-deps -T api python -m miti_api.admin.alta EMAIL`
+    (`--baja`, `--reenrolar` si se pierde el celular).
+  - **App:** pantalla "Plan de la campaña" (`pantallas/plan.dart`), un 402 ofrece mejorar, aviso
+    de campaña suspendida, AdMob (`nucleo/publicidad.dart`) con los **ID de prueba de Google**.
+    **Arreglo:** `plata()` mostraba "15.000 $" (formato es_AR de intl); ahora "$ 15.000".
+    `MitiBoton` parte los textos largos en dos líneas.
+  - **Pruebas:** `prueba_fase7_planes.py` 32/32, `prueba_fase7_admin.py` 41/41, y las nueve
+    anteriores en verde. App: `flutter analyze` limpio, `flutter test` 22/22.
+
 ## 7. Pasos a seguir, en orden
 
 0. **Pendiente del usuario para que las push funcionen** (nadie más puede hacerlo,
@@ -295,6 +323,18 @@ Antes de publicar una versión nueva, subí `version:` en `app/pubspec.yaml`. La
       privada y subir ese JSON al VPS como `/srv/miti/secrets/firebase.json`
       (644, dentro de la carpeta 700), reemplazando el `{}` de ejemplo. Después
       `desplegar.sh` y probar una invitación: tiene que llegar la notificación.
+0.b **Pendientes del usuario para cerrar la Fase 7** (necesitan sus cuentas):
+   1. **Panel:** decir con qué email entra al panel; se lo da de alta con `miti_api.admin.alta`
+      y entra en `https://miti.sole.ar/admin` (la primera vez enrola la app autenticadora).
+   2. **MercadoPago (prueba):** en developers de MercadoPago → la aplicación → Credenciales de
+      prueba, cargar con nano en `/srv/miti/secrets/mercadopago.env` la línea
+      `MP_ACCESS_TOKEN=TEST-...`; en Webhooks, poner la URL
+      `https://miti.sole.ar/pagos/mercadopago/webhook` con el evento "Pagos", copiar la clave
+      secreta como `MP_WEBHOOK_SECRET=...`. Después `docker compose restart api` no hace falta
+      (se lee en cada uso). Probar con un usuario comprador de prueba.
+   3. **AdMob:** crear la app en AdMob y pasar el ID de la app y los de los bloques banner e
+      intersticial. El de la app va en `app/android/admob.properties` (`ADMOB_APP_ID=...`) y los
+      bloques al compilar: `--dart-define=ADMOB_BANNER=... --dart-define=ADMOB_INTERSTICIAL=...`.
 1. **El usuario prueba la APK 0.8.0 en el celular**:
    - Abrir "Mi perfil" tocando el avatar en la esquina superior derecha del inicio.
    - Probar el cambio de tema entre **Automático**, **Claro** y **Oscuro** comprobando el cambio visual inmediato en toda la app.
