@@ -327,8 +327,14 @@ Antes de publicar una versión nueva, subí `version:` en `app/pubspec.yaml`. La
     recordatorio de deuda; si el modelo falla devuelve la plantilla (`origen: "plantilla"`).
   - Panel `/admin → Salud` muestra si el modelo responde.
   - Prueba: `api/pruebas/prueba_ia_local.py` **15/15**. Evidencia: `docs/ANEXO_IA_LOCAL.md`.
-  - **Pendiente:** la pantalla en la app (la está haciendo Gemini según `docs/TAREA_GEMINI.md`)
-    y publicar el APK con ese cambio.
+  - **App (Gemini, commit 903072b):** `app/lib/pantallas/hoja_recordatorio.dart`, hoja con el
+    texto editable, "Otra redacción" (alterna amable/firme) y envío por WhatsApp. Si no hay
+    señal usa la plantilla local. `flutter analyze` limpio, `flutter test` 26/26.
+  - **Última APK publicada:** `https://miti.sole.ar/descargas/miti-0.10.0.apk` (también
+    `miti.apk`, SHA256 `90ae38217b4c9c59bcde61c6fbf3734cb7898588f32814ce264b378e64d6ca6d`).
+  - **Datos de demostración cargados:** rifa «Deluxe Femme», 200 números, 116 ventas,
+    liquidada. Campaña `42fa779d-ff74-4d94-8a3b-c18fa30c9915`, administradora
+    eugenia.avila@live.com.ar. El cargador es `api/pruebas/cargar_demo_deluxe.py`.
   - Para usar el CLI en el servidor: `OLLAMA_HOST` ya queda exportado por
     `/etc/profile.d/ollama.sh`.
 
