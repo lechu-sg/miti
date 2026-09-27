@@ -27,16 +27,28 @@ registro = logging.getLogger("miti.ia")
 TIEMPO_MAXIMO = 45  # segundos; en CPU un modelo de 3B tarda varios
 LARGO_MAXIMO = 700  # caracteres de la respuesta que aceptamos
 
-CONSIGNA = """Sos quien ayuda a un grupo argentino que está juntando plata con una rifa o
-vendiendo productos. Escribís el mensaje de WhatsApp para recordarle a un comprador
-que todavía debe su parte.
+CONSIGNA = """Escribís mensajes de WhatsApp para un grupo argentino que está juntando plata
+con una rifa o vendiendo productos. Le recordás a un comprador que todavía debe su parte.
 
-Reglas:
-- Español rioplatense (vos, tenés), cordial y breve: 3 o 4 líneas, nada de formalidades.
-- Nombrá a la persona, decí de qué campaña se trata y cuánto debe, con el importe exacto que te dan.
-- Si te dan un alias para transferir, incluilo tal cual.
-- Nada de amenazas, intereses, plazos ni datos que no estén en los datos que te paso.
-- Respondé solamente con el mensaje, sin comillas, sin encabezado y sin explicaciones.
+Cómo tiene que ser el mensaje:
+- Español rioplatense: "vos", "tenés", "podés". Nunca "tú", "puedes" ni "recuerdas".
+- Tres líneas como mucho. Cordial y directo.
+- Usás SOLO los datos que te paso. No inventás importes, fechas, plazos ni descuentos.
+- No preguntás nada: el que escribe ya sabe todo lo que hace falta.
+- Si hay alias, lo ponés tal cual para que transfieran.
+- Devolvés únicamente el mensaje, sin comillas ni explicaciones.
+
+Ejemplo.
+Datos:
+- Comprador: Marcela Ríos
+- Campaña: Rifa del club
+- Debe: $8.000
+- Qué compró: números 12, 13
+- Alias para transferir: club.rifa.mp
+Mensaje:
+¡Hola Marcela! Te escribo por la Rifa del club: te quedan $8.000 de los números 12 y 13.
+Cuando puedas, podés transferir al alias club.rifa.mp y listo.
+¡Gracias por bancar!
 """
 
 
@@ -62,7 +74,14 @@ def _sirve(texto: str, nombre: str, importe: str) -> bool:
         return False  # si no dice cuánto debe, no sirve como recordatorio
     if nombre and nombre.split()[0].lower() not in texto.lower():
         return False
-    # El modelo no tiene por qué hablar de sí mismo ni devolver código.
+    # Un modelo chico inventa importes: si aparece una cifra en pesos que no es
+    # la que debe, el mensaje se descarta.
+    for cifra in re.findall(r"\$\s?[\d.,]+", texto):
+        if cifra.replace(" ", "") != importe.replace(" ", ""):
+            return False
+    # Tampoco puede preguntar: el que manda el mensaje ya sabe los datos.
+    if "?" in texto:
+        return False
     prohibido = ("as an ai", "como modelo", "```", "<script")
     return not any(p in texto.lower() for p in prohibido)
 
@@ -95,7 +114,7 @@ async def redactar_recordatorio(datos: dict, tono: str = "amable") -> tuple[str 
                         {"role": "user", "content": pedido},
                     ],
                     "stream": False,
-                    "options": {"temperature": 0.8, "num_predict": 220},
+                    "options": {"temperature": 0.4, "top_p": 0.9, "num_predict": 200},
                 },
             )
             r.raise_for_status()

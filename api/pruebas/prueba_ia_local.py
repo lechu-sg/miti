@@ -109,7 +109,7 @@ st, r = llamar("POST", f"/campanas/{cid}/ventas/{vid}/recordatorio", t, {"tono":
 probar("un tono que no existe se rechaza", 422, st)
 
 st, cobro = llamar("POST", f"/campanas/{cid}/ventas/{vid}/cobros", t,
-                   {"importe": 1_200_000, "destino": "efectivo"})
+                   {"importe": 1_200_000, "caja_tipo": "efectivo"})
 st, r = llamar("POST", f"/campanas/{cid}/ventas/{vid}/recordatorio", t)
 probar("a quien ya pagó no se le pide redactar nada (409)", 409, st)
 
