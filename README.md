@@ -13,6 +13,8 @@ App Android para administrar campañas de recaudación en grupo (números o prod
 ## Servidor de prueba
 
 - `https://miti.sole.ar` — VPS Oracle A1 (arm64, Ubuntu 24.04, región Phoenix).
+  - `/` portada pública (estática, en `infra/portada`, la sirve Caddy) · `/descargas` APK y huellas
+  - `/admin` panel de administración · `/salud` estado de la API
 - El código vive en `/srv/miti/app` (clon de este repositorio con una deploy key de solo lectura).
 - Los datos viven en `/srv/miti/data` y los secretos en `/srv/miti/secrets`; nada de eso está en el repositorio.
 
