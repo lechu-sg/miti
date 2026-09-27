@@ -84,7 +84,7 @@ void main() {
 
     await tester.pumpAndSettle();
 
-    expect(find.text('RECORDATORIO DE PAGO'), findsOneWidget);
+    expect(find.text('Recordatorio de pago'), findsOneWidget);
     expect(find.text('PARA JUAN GÓMEZ'), findsOneWidget);
     expect(find.text('Hola Juan! Mensaje redactado por IA para la rifa.'), findsOneWidget);
     expect(

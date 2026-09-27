@@ -51,6 +51,8 @@ class _HojaRecordatorioState extends ConsumerState<HojaRecordatorio> {
   late final TextEditingController _controlador;
   bool _redactando = false;
   String? _origen;
+  // La segunda propuesta cambia de tono: si no, el modelo repite casi lo mismo.
+  bool _proximaFirme = false;
 
   @override
   void initState() {
@@ -88,6 +90,7 @@ class _HojaRecordatorioState extends ConsumerState<HojaRecordatorio> {
             ventaId,
             tono: tono,
           );
+      _proximaFirme = tono == 'amable';
       if (mounted) {
         final nuevoTexto = res['mensaje'] as String?;
         if (nuevoTexto != null && nuevoTexto.trim().isNotEmpty) {
@@ -126,7 +129,7 @@ class _HojaRecordatorioState extends ConsumerState<HojaRecordatorio> {
     final compradorNombre = comprador['nombre'] as String? ?? 'Comprador';
 
     return MitiHoja(
-      titulo: 'RECORDATORIO DE PAGO',
+      titulo: 'Recordatorio de pago',
       subtitulo: 'Para $compradorNombre',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -190,7 +193,9 @@ class _HojaRecordatorioState extends ConsumerState<HojaRecordatorio> {
             secundario: true,
             cargando: _redactando,
             icono: Icons.refresh_rounded,
-            onTap: _redactando ? null : () => _pedirRedaccion(),
+            onTap: _redactando
+                ? null
+                : () => _pedirRedaccion(tono: _proximaFirme ? 'firme' : 'amable'),
           ),
         ],
       ),
