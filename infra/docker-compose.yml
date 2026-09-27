@@ -72,6 +72,7 @@ services:
       MITI_SMTP_ARCHIVO: /run/secrets/smtp
       MITI_FIREBASE_CREDENCIALES: /run/secrets/firebase
       MITI_MERCADOPAGO_ARCHIVO: /run/secrets/mercadopago
+      MITI_OLLAMA_URL: http://172.28.0.1:11434
     secrets: [db_password, claves, smtp, firebase, mercadopago]
     volumes:
       - /srv/miti/data/archivos:/srv/miti/data/archivos
@@ -98,7 +99,13 @@ secrets:
     file: /srv/miti/secrets/mercadopago.env
 
 networks:
+  # Subred fija: la IA local (Ollama, en el host) escucha SOLO en esta puerta
+  # de enlace, 172.28.0.1, que no existe fuera del servidor.
   borde:
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16
+          gateway: 172.28.0.1
   interna:
     internal: true
   salida_db:
