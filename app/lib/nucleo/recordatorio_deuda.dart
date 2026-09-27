@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../pantallas/hoja_recordatorio.dart';
 import 'formato.dart';
 
 /// Helper para enviar recordatorios de cobro a compradores deudores (§7.4 de DEFINICION.md).
@@ -47,7 +48,19 @@ Future<void> enviarRecordatorioDeuda(
   required Map<String, dynamic> venta,
   required String campanaNombre,
   String? alias,
+  String? campanaId,
 }) async {
+  if (campanaId != null && campanaId.isNotEmpty) {
+    await mostrarHojaRecordatorio(
+      context,
+      campanaId: campanaId,
+      venta: venta,
+      campanaNombre: campanaNombre,
+      alias: alias,
+    );
+    return;
+  }
+
   final msg = generarMensajeRecordatorio(
     venta: venta,
     campanaNombre: campanaNombre,

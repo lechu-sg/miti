@@ -50,14 +50,20 @@ class ApiMiti {
 
   Uri _url(String ruta) => Uri.parse('$base$ruta');
 
-  Future<http.Response> _mandar(String metodo, String ruta, {Object? cuerpo, bool conToken = true}) {
+  Future<http.Response> _mandar(
+    String metodo,
+    String ruta, {
+    Object? cuerpo,
+    bool conToken = true,
+    Duration? timeout,
+  }) {
     final encabezados = {
       'content-type': 'application/json',
       if (conToken && _token != null) 'authorization': 'Bearer $_token',
     };
     final datos = cuerpo == null ? null : jsonEncode(cuerpo);
     final url = _url(ruta);
-    return switch (metodo) {
+    final llamada = switch (metodo) {
       'GET' => _http.get(url, headers: encabezados),
       'POST' => _http.post(url, headers: encabezados, body: datos),
       'PUT' => _http.put(url, headers: encabezados, body: datos),
@@ -65,14 +71,21 @@ class ApiMiti {
       'DELETE' => _http.delete(url, headers: encabezados, body: datos),
       _ => throw ArgumentError('método desconocido: $metodo'),
     };
+    return timeout != null ? llamada.timeout(timeout) : llamada;
   }
 
-  Future<dynamic> pedir(String metodo, String ruta, {Object? cuerpo, bool conToken = true}) async {
-    var respuesta = await _mandar(metodo, ruta, cuerpo: cuerpo, conToken: conToken);
+  Future<dynamic> pedir(
+    String metodo,
+    String ruta, {
+    Object? cuerpo,
+    bool conToken = true,
+    Duration? timeout,
+  }) async {
+    var respuesta = await _mandar(metodo, ruta, cuerpo: cuerpo, conToken: conToken, timeout: timeout);
 
     if (respuesta.statusCode == 401 && conToken && _refresco != null) {
       if (await _renovar()) {
-        respuesta = await _mandar(metodo, ruta, cuerpo: cuerpo, conToken: conToken);
+        respuesta = await _mandar(metodo, ruta, cuerpo: cuerpo, conToken: conToken, timeout: timeout);
       }
     }
 
@@ -507,6 +520,20 @@ class ApiMiti {
     });
     return (res as Map).cast<String, dynamic>();
   }
+
+  // --- Recordatorios con IA (§7.4) ---
+
+  Future<Map<String, dynamic>> redactarRecordatorio(
+    String campanaId,
+    String ventaId, {
+    String tono = 'amable',
+  }) async =>
+      (await pedir(
+        'POST',
+        '/campanas/$campanaId/ventas/$ventaId/recordatorio',
+        cuerpo: {'tono': tono},
+        timeout: const Duration(seconds: 60),
+      )) as Map<String, dynamic>;
 }
 
 /// Un error que vino de la API, ya traducido a algo que se le puede mostrar a la gente.

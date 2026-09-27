@@ -1446,6 +1446,7 @@ class _FilaVenta extends ConsumerWidget {
                           InkWell(
                             onTap: () => enviarRecordatorioDeuda(
                               context,
+                              campanaId: campanaId,
                               venta: venta,
                               campanaNombre: campanaNombre,
                               alias: alias,
