@@ -73,6 +73,8 @@ services:
       MITI_FIREBASE_CREDENCIALES: /run/secrets/firebase
       MITI_MERCADOPAGO_ARCHIVO: /run/secrets/mercadopago
       MITI_OLLAMA_URL: http://172.28.0.1:11434
+      # Dominios de prueba y de demostración: se registran pero no se manda correo.
+      MITI_DOMINIOS_SIN_ENVIO: pruebas.miti.sole.ar,demo.miti.sole.ar
     secrets: [db_password, claves, smtp, firebase, mercadopago]
     volumes:
       - /srv/miti/data/archivos:/srv/miti/data/archivos
