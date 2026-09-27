@@ -318,6 +318,20 @@ Antes de publicar una versión nueva, subí `version:` en `app/pubspec.yaml`. La
     **Al publicar, comparar la huella local con la del servidor**: una vez se publicó un APK
     viejo con nombre nuevo porque la compilación había fallado y nadie lo miró.
 
+- **IA local en el producto (27/09/2026): HECHA en el servidor.**
+  - Ollama + `llama3.2:3b` en el VPS, atado a `172.28.0.1:11434` (puerta de enlace de la red
+    `borde`, que ahora tiene subred fija `172.28.0.0/16`). Regla de firewall agregada a mano en
+    `/etc/iptables/rules.v4` (validada con `iptables-restore --test`; copia previa en
+    `rules.v4.antes-ia`). **Nunca correr `netfilter-persistent save`.**
+  - `api/miti_api/ia_local.py` + `POST /campanas/{id}/ventas/{id}/recordatorio`: redacta el
+    recordatorio de deuda; si el modelo falla devuelve la plantilla (`origen: "plantilla"`).
+  - Panel `/admin → Salud` muestra si el modelo responde.
+  - Prueba: `api/pruebas/prueba_ia_local.py` **15/15**. Evidencia: `docs/ANEXO_IA_LOCAL.md`.
+  - **Pendiente:** la pantalla en la app (la está haciendo Gemini según `docs/TAREA_GEMINI.md`)
+    y publicar el APK con ese cambio.
+  - Para usar el CLI en el servidor: `OLLAMA_HOST` ya queda exportado por
+    `/etc/profile.d/ollama.sh`.
+
 ## 7. Pasos a seguir, en orden
 
 0. **Pendiente del usuario para que las push funcionen** (nadie más puede hacerlo,

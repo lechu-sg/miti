@@ -391,6 +391,25 @@ miti/
 
 ---
 
+## 11 bis. IA local (agregado el 2026-09-27)
+
+- **Dónde corre:** Ollama con `llama3.2:3b` en el mismo VPS, escuchando sólo en la red interna
+  de Docker. No está publicado en internet.
+- **Para qué:** redactar el recordatorio de deuda que el vendedor manda por WhatsApp. La IA
+  **propone**; la persona revisa, edita y manda.
+- **Por qué local:** el mensaje lleva el nombre de un comprador, que no es usuario de Miti y no
+  dio consentimiento para que sus datos salgan (Ley 25.326).
+- **Regla:** la IA es un accesorio. Si el modelo no está o contesta algo que no pasa los
+  controles, se usa el texto de plantilla y la app funciona igual.
+- **Controles:** consigna cerrada con ejemplo, temperatura 0.4, datos del comprador tratados
+  como datos y recortados (prompt injection), y validación de la respuesta: tiene que nombrar a
+  la persona, decir el importe exacto, no traer ninguna otra cifra en pesos, no preguntar nada
+  y no devolver código.
+- **Medido:** ≈14 tokens/s en CPU ARM; entre 7 y 16 segundos por mensaje. Detalle en
+  `docs/ANEXO_IA_LOCAL.md`.
+
+---
+
 ## 12. Diseño
 
 - **Dirección elegida: A · Talonario**, con el fondo más claro: papel y tinta, tipografía condensada, perforaciones, sello rojo. Maquetas en claro y oscuro: https://claude.ai/artifact/NJvCmyQiTzbihsthKYqZWM (las direcciones B y C quedan en la página "Descartadas").
