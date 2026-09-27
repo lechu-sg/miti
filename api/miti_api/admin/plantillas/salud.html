@@ -20,6 +20,16 @@
     </table>
   </div>
   <div>
+    <h2>IA local</h2>
+    <table>
+      <tr><td>Modelo</td><td class="n">{{ ia.modelo }}</td></tr>
+      <tr><td>Estado</td><td class="n">
+        <span class="chip {{ "ok" if ia.viva else "mal" }}">{{ "cargado" if ia.viva else "no responde" }}</span>
+      </td></tr>
+    </table>
+    <p class="suave" style="font-size:13px">Corre en este mismo servidor (Ollama). Si no responde,
+      los recordatorios salen con el texto de plantilla y la app funciona igual.</p>
+
     <h2>Espacio</h2>
     <table>
       <tr><td>Base de datos</td><td class="n">{{ tam_db }}</td></tr>

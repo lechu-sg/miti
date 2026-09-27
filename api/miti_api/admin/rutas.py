@@ -33,7 +33,7 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy import Date, cast, func, or_, select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from .. import cripto
+from .. import cripto, ia_local
 from ..config import ajustes
 from ..db import sesion
 from ..esquemas import PedirCodigo
@@ -649,6 +649,7 @@ async def salud(
             ).order_by(CompraCampana.creada.desc()).limit(20)
         )
     ).scalars().all()
+    ia = {"viva": await ia_local.esta_viva(), "modelo": ajustes().modelo_ia}
     tam_db = (await s.execute(text("select pg_size_pretty(pg_database_size(current_database()))"))).scalar_one()
     try:
         uso = shutil.disk_usage(ajustes().carpeta_archivos)
@@ -656,7 +657,7 @@ async def salud(
     except OSError:
         disco = None
     return _pagina(pedido, "salud.html", adm=adm, seccion="salud", estados=estados, correo=correo,
-                   compras_trabadas=compras_trabadas, tam_db=tam_db, disco=disco)
+                   compras_trabadas=compras_trabadas, tam_db=tam_db, disco=disco, ia=ia)
 
 
 @ruteador.get("/accesos", response_class=HTMLResponse)
