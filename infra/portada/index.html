@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Miti · la rifa del grupo, sin planillas</title>
+<meta name="description" content="App Android para administrar una rifa o una venta de productos en grupo: quién vendió, dónde quedó la plata y cuánto le toca a cada uno.">
+<meta property="og:title" content="Miti">
+<meta property="og:description" content="La rifa del grupo, sin planillas ni discusiones.">
+<meta property="og:type" content="website">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%231E2A3A'/%3E%3Ctext x='16' y='23' font-family='Georgia,serif' font-size='18' font-weight='700' fill='%23FBF9F4' text-anchor='middle'%3EM%3C/text%3E%3C/svg%3E">
+<style>
+@font-face{font-family:BigShoulders;src:url('/p/fuentes/BigShouldersDisplay-Variable.ttf') format('truetype-variations');font-weight:100 900;font-display:swap}
+@font-face{font-family:Figtree;src:url('/p/fuentes/Figtree-Variable.ttf') format('truetype-variations');font-weight:100 900;font-display:swap}
+
+:root{
+  --papel:#FBF9F4; --hoja:#FFFFFF; --hundido:#F1ECE0; --tinta:#1E2A3A; --tinta-sobre:#FBF9F4;
+  --suave:#5F5A4E; --troquel:#CFC6B2; --sello:#B7372A; --sello-texto:#8E2A20; --ok:#2F7A57;
+}
+@media (prefers-color-scheme:dark){:root{
+  --papel:#141A23; --hoja:#212A38; --hundido:#2B3647; --tinta:#F3EDE0; --tinta-sobre:#141A23;
+  --suave:#B9B2A1; --troquel:#5A6A80; --sello:#C94A36; --sello-texto:#F7A28F; --ok:#6CC39A;
+}}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--papel);color:var(--tinta);
+  font:17px/1.6 Figtree,system-ui,-apple-system,"Segoe UI",sans-serif;-webkit-font-smoothing:antialiased}
+.envoltorio{max-width:860px;margin:0 auto;padding:0 20px}
+h1,h2,h3,.marca{font-family:BigShoulders,Georgia,serif;font-variation-settings:'wght' 800;
+  letter-spacing:.02em;line-height:1.05;margin:0}
+a{color:var(--sello-texto)}
+.sobrelinea{font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--suave);
+  font-family:Figtree,sans-serif;font-variation-settings:'wght' 600}
+
+header{padding:26px 0 8px}
+.marca{font-size:26px;letter-spacing:.18em}
+
+/* Ticket de portada */
+.ticket{background:var(--hoja);border:2px solid var(--tinta);border-radius:8px;padding:30px 26px;margin-top:14px}
+.ticket h1{font-size:clamp(38px,8vw,62px)}
+.ticket p.bajada{font-size:clamp(17px,2.4vw,20px);color:var(--tinta);margin:14px 0 0;max-width:34em}
+.troquel{border:0;border-top:2px dashed var(--troquel);margin:24px 0}
+.acciones{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+.boton{display:inline-block;background:var(--sello);color:#fff;text-decoration:none;
+  padding:14px 22px;border-radius:6px;font-variation-settings:'wght' 700;font-size:17px}
+.boton.sec{background:transparent;color:var(--tinta);border:1.5px solid var(--tinta)}
+.pie-boton{font-size:14px;color:var(--suave);margin:10px 0 0}
+code{background:var(--hundido);padding:2px 6px;border-radius:4px;font-size:13px;word-break:break-all}
+
+section{padding:34px 0}
+h2{font-size:clamp(26px,4.4vw,34px);margin-bottom:6px}
+.pasos{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));margin-top:18px}
+.paso{background:var(--hoja);border:1.5px solid var(--tinta);border-radius:6px;padding:18px}
+.paso .num{font-family:BigShoulders,serif;font-variation-settings:'wght' 800;font-size:30px;color:var(--sello)}
+.paso h3{font-size:20px;margin:2px 0 6px}
+.paso p{margin:0;font-size:15px;color:var(--suave)}
+
+ul.lista{list-style:none;padding:0;margin:18px 0 0;
+  display:grid;gap:8px 22px;grid-template-columns:repeat(auto-fit,minmax(260px,1fr))}
+ul.lista li{padding-left:24px;position:relative}
+ul.lista li::before{content:"✓";position:absolute;left:0;color:var(--ok);font-variation-settings:'wght' 700}
+
+.cifras{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));margin-top:18px}
+.cifra{background:var(--hoja);border:1.5px solid var(--tinta);border-radius:6px;padding:16px;text-align:center}
+.cifra b{display:block;font-family:BigShoulders,serif;font-variation-settings:'wght' 800;font-size:34px}
+.cifra span{font-size:13px;color:var(--suave)}
+
+.caja{background:var(--hundido);border-radius:6px;padding:18px;margin-top:18px}
+footer{border-top:2px dashed var(--troquel);margin-top:20px;padding:22px 0 50px;color:var(--suave);font-size:15px}
+footer a{color:var(--sello-texto)}
+@media (max-width:520px){.ticket{padding:24px 18px}.boton{width:100%;text-align:center}}
+</style>
+</head>
+<body>
+
+<div class="envoltorio">
+  <header><div class="marca">MITI</div></header>
+
+  <div class="ticket">
+    <div class="sobrelinea">Rifas y ventas en grupo</div>
+    <h1>La rifa del curso,<br>sin planillas ni discusiones</h1>
+    <p class="bajada">Cada uno anota lo que vende y dónde quedó la plata.
+      Miti lleva la cuenta, avisa quién debe y al final reparte en partes iguales.</p>
+    <hr class="troquel">
+    <div class="acciones">
+      <a class="boton" href="/descargas/miti.apk">Descargar para Android</a>
+      <a class="boton sec" href="#como">Ver cómo funciona</a>
+    </div>
+    <p class="pie-boton">Se instala fuera de Play Store: al abrir el archivo, Android va a pedirte permiso para instalar.
+      La huella del archivo está en <a href="/descargas/">la página de descargas</a>.</p>
+  </div>
+
+  <section>
+    <div class="sobrelinea">El problema</div>
+    <h2>La plata termina en cinco lugares distintos</h2>
+    <p>Una parte en la cuenta de quien cobra las transferencias, otra en la billetera virtual de cada uno
+      y otra en efectivo. Alguien pagó las fotocopias y hay que devolvérselo. La cuenta la lleva una
+      sola persona en una planilla, y cuando llega el reparto empieza la discusión de cuánto entró,
+      cuánto se gastó y cuánto le toca a cada uno.</p>
+  </section>
+
+  <section id="como">
+    <div class="sobrelinea">Cómo funciona</div>
+    <h2>Tres pasos</h2>
+    <div class="pasos">
+      <div class="paso">
+        <div class="num">1</div>
+        <h3>Armás la campaña</h3>
+        <p>Rifa con su talonario de números, o venta de productos con su catálogo.
+          Invitás al grupo y cada uno entra con su mail, sin contraseñas.</p>
+      </div>
+      <div class="paso">
+        <div class="num">2</div>
+        <h3>Cada uno vende</h3>
+        <p>Anota el número o el producto, quién lo compró y <strong>dónde quedó la plata</strong>:
+          cuenta principal, billetera o efectivo. Anda sin señal y sincroniza después.</p>
+      </div>
+      <div class="paso">
+        <div class="num">3</div>
+        <h3>Se cierra y se reparte</h3>
+        <p>Miti descuenta los gastos aprobados, divide en partes iguales y dice
+          <strong>quién le tiene que transferir a quién</strong>, con la menor cantidad de transferencias.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sobrelinea">Qué trae</div>
+    <h2>Todo lo que hoy se resuelve a mano</h2>
+    <ul class="lista">
+      <li>Talonario de números con reserva de 48 horas</li>
+      <li>Venta de productos, con encargos y entregas</li>
+      <li>Funciona sin señal y avisa si dos vendieron el mismo número</li>
+      <li>Comprobantes de pago, con aviso de duplicados</li>
+      <li>Gastos con aprobación de otro integrante</li>
+      <li>Imagen de números disponibles para mandar por WhatsApp</li>
+      <li>Billete para el comprador y tarjeta del ganador</li>
+      <li>Sorteo con varios premios</li>
+      <li>Recordatorios a quienes deben</li>
+      <li>Ranking del equipo y muro de avisos</li>
+      <li>Exportación del balance a Excel y PDF</li>
+      <li>Modo oscuro y bloqueo de capturas de pantalla</li>
+    </ul>
+    <div class="caja">
+      <strong>Gratis</strong> para una campaña de hasta 5 integrantes y 100 números.
+      Los planes pagos amplían los límites y sacan la publicidad.
+    </div>
+  </section>
+
+  <section>
+    <div class="sobrelinea">Cómo se construyó</div>
+    <h2>Un equipo de agentes, orquestado</h2>
+    <p>Miti es el trabajo final del <strong>Curso de Inteligencia Artificial para Programadores</strong>
+      de la UTN · Facultad Regional Buenos Aires. No se escribió a mano: se orquestó.
+      Un humano define las reglas y decide; un orquestador reparte cada etapa —análisis, arquitectura,
+      backend, diseño, infraestructura, pruebas— entre agentes de dos modelos distintos, que se pasan
+      el trabajo a través de documentos versionados en el repositorio.</p>
+    <div class="cifras">
+      <div class="cifra"><b>84</b><span>commits en 6 días</span></div>
+      <div class="cifra"><b>40 / 43</b><span>co-firmados por Claude y por Gemini</span></div>
+      <div class="cifra"><b>392</b><span>pruebas automáticas contra este servidor</span></div>
+      <div class="cifra"><b>2</b><span>nubes con copias cifradas y restauración probada</span></div>
+    </div>
+    <p style="margin-top:18px">Todo está publicado: el código, la definición del sistema, el documento de
+      traspaso entre agentes y el sistema de diseño que los agentes están obligados a respetar.</p>
+    <div class="acciones">
+      <a class="boton sec" href="https://github.com/lechu-sg/miti">Ver el repositorio</a>
+      <a class="boton sec" href="https://github.com/lechu-sg/miti/blob/main/docs/DEFINICION.md">Definición del sistema</a>
+      <a class="boton sec" href="https://github.com/lechu-sg/miti/blob/main/docs/TRASPASO.md">Traspaso entre agentes</a>
+    </div>
+  </section>
+
+  <footer>
+    <p><strong>Miti</strong> · servidor de prueba en <code>miti.sole.ar</code>.
+      Los datos personales se guardan cifrados y se borran seis meses después de liquidada la campaña.</p>
+    <p>Consultas: <a href="mailto:miti@sole.ar">miti@sole.ar</a> ·
+      <a href="/descargas/">Descargas y huellas</a> ·
+      <a href="https://github.com/lechu-sg/miti">Código</a></p>
+  </footer>
+</div>
+
+</body>
+</html>

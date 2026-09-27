@@ -22,5 +22,18 @@
 		header Cache-Control "no-cache"
 	}
 
+	# Portada pública. Los archivos viajan en el repositorio (infra/portada).
+	handle / {
+		root * /srv/portada
+		rewrite * /index.html
+		file_server
+	}
+	handle /p/* {
+		root * /srv/portada
+		uri strip_prefix /p
+		file_server
+		header Cache-Control "public, max-age=86400"
+	}
+
 	reverse_proxy api:8000
 }
