@@ -10,7 +10,8 @@ from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from .. import cripto
+from .. import cripto, ia_local
+from ..config import ajustes
 from ..db import sesion
 from ..esquemas import (
     CompradorSalida,
@@ -22,9 +23,10 @@ from ..esquemas import (
     NuevoCobro,
     NumeroSalida,
     RankingSalida,
-    RechazarMovimiento,
     RecaudacionCaja,
     RecaudacionSalida,
+    RechazarMovimiento,
+    RedactarRecordatorio,
     ReservarNumero,
     SolicitarAnulacionEntrada,
     VentaSalida,
@@ -1334,3 +1336,75 @@ async def ranking_ventas(
         tipo=ctx.campana.tipo,
         items=items_salida,
     )
+
+
+@ruteador.post("/campanas/{campana_id}/ventas/{venta_id}/recordatorio")
+async def redactar_recordatorio(
+    venta_id: uuid.UUID,
+    datos: RedactarRecordatorio | None = None,
+    ctx: Contexto = Depends(contexto_activo),
+    s: AsyncSession = Depends(sesion),
+) -> dict:
+    """Propone el texto para recordarle a un comprador que debe (§7.4).
+
+    Lo escribe el modelo que corre en este mismo servidor, así los datos del
+    comprador no salen de acá. Si el modelo no está o contesta algo que no
+    sirve, se devuelve el texto de plantilla: la app funciona igual.
+    """
+    venta = (
+        await s.execute(
+            select(Venta)
+            .options(selectinload(Venta.items).selectinload(VentaItem.producto),
+                     selectinload(Venta.comprador))
+            .where(Venta.id == venta_id, Venta.campana_id == ctx.campana.id)
+        )
+    ).scalar_one_or_none()
+    if venta is None or venta.estado != "confirmada":
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "esa venta no existe")
+
+    movs = (
+        await s.execute(select(Movimiento).where(Movimiento.venta_id == venta.id))
+    ).scalars().all()
+    saldo = max(0, venta.importe - sum(m.importe for m in movs if m.estado in ("confirmado", "pendiente")))
+    if saldo <= 0:
+        raise HTTPException(status.HTTP_409_CONFLICT, "esa venta no tiene saldo pendiente")
+
+    nombre = cripto.descifrar(venta.comprador.nombre_cifrado) or ""
+    numeros = [str(i.numero) for i in venta.items if i.numero is not None]
+    productos = [f"{i.cantidad} x {i.producto.nombre}" for i in venta.items if i.producto is not None]
+    detalle = ("números " + ", ".join(numeros)) if numeros else ", ".join(productos)
+
+    caja = (
+        await s.execute(
+            select(Caja).where(Caja.campana_id == ctx.campana.id, Caja.tipo == "principal")
+        )
+    ).scalar_one_or_none()
+    alias = cripto.descifrar(caja.alias_cifrado) if caja and caja.alias_cifrado else None
+
+    plata = f"${saldo // 100:,}".replace(",", ".")
+    material = {
+        "comprador": nombre,
+        "campana": ctx.campana.nombre,
+        "saldo": plata,
+        "detalle": detalle,
+        "alias": alias,
+    }
+
+    mensaje, demoro = await ia_local.redactar_recordatorio(
+        material, tono=(datos.tono if datos else "amable")
+    )
+    if mensaje is None:
+        partes = [
+            f"¡Hola {nombre}! Te escribo de la campaña «{ctx.campana.nombre}».",
+            f"Te queda pendiente {plata} de tu colaboración.",
+        ]
+        if detalle:
+            partes.append(f"Es por {detalle}.")
+        if alias:
+            partes.append(f"Podés transferir al alias {alias}.")
+        partes.append("¡Gracias por colaborar!")
+        return {"mensaje": "\n".join(partes), "origen": "plantilla",
+                "modelo": None, "demoro_ms": demoro}
+
+    return {"mensaje": mensaje, "origen": "ia_local",
+            "modelo": ajustes().modelo_ia, "demoro_ms": demoro}

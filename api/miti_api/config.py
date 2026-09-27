@@ -57,6 +57,9 @@ class Ajustes(BaseSettings):
     mercadopago_archivo: str | None = None
     # Dirección pública del servidor: la usan el webhook y las páginas de vuelta.
     url_publica: str = "https://miti.sole.ar"
+    # IA local (Ollama en el mismo VPS). Escucha sólo en la red interna de Docker.
+    ollama_url: str = "http://172.17.0.1:11434"
+    modelo_ia: str = "llama3.2:3b"
 
     @property
     def url_db(self) -> str:

@@ -611,3 +611,9 @@ class CompraSalida(BaseModel):
     detalle_estado: str | None
     creada: datetime
     acreditada: datetime | None
+
+
+class RedactarRecordatorio(BaseModel):
+    """Tono con el que la IA local redacta el recordatorio de deuda."""
+
+    tono: Literal["amable", "firme"] = "amable"
