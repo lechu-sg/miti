@@ -191,12 +191,18 @@ class MitiTicket extends StatelessWidget {
                 ),
               ),
               SizedBox(
-                width: 86,
+                // Alcanza para "200" (cantidad de números) y para un importe
+                // como "$ 93.700", que antes se partía letra por letra.
+                width: 118,
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Text(talonArriba!,
-                        style: t.importe.copyWith(color: c.tintaSobre, fontSize: 36, height: 1)),
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(talonArriba!,
+                          maxLines: 1,
+                          style: t.importe.copyWith(color: c.tintaSobre, fontSize: 36, height: 1)),
+                    ),
                     if (talonAbajo != null)
                       Text(talonAbajo!.toUpperCase(),
                           textAlign: TextAlign.center,
