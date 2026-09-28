@@ -330,8 +330,16 @@ Antes de publicar una versión nueva, subí `version:` en `app/pubspec.yaml`. La
   - **App (Gemini, commit 903072b):** `app/lib/pantallas/hoja_recordatorio.dart`, hoja con el
     texto editable, "Otra redacción" (alterna amable/firme) y envío por WhatsApp. Si no hay
     señal usa la plantilla local. `flutter analyze` limpio, `flutter test` 26/26.
-  - **Última APK publicada:** `https://miti.sole.ar/descargas/miti-0.10.0.apk` (también
-    `miti.apk`, SHA256 `90ae38217b4c9c59bcde61c6fbf3734cb7898588f32814ce264b378e64d6ca6d`).
+  - **TRAMPA (costó una versión):** el SDK de AdMob arrastra **WorkManager**, que usa Room.
+    R8 renombra la clase generada que Room busca por reflexión y la app **muere al arrancar**
+    en release, antes de dibujar nada: `Failed to create an instance of
+    androidx.work.impl.WorkDatabase`. Se arregla con `app/android/app/proguard-rules.pro`.
+    Las versiones 0.9.0 y 0.10.0 tenían el defecto y se borraron del servidor.
+    **Un APK de release no se publica sin instalarlo antes en un celular**: `flutter test` y
+    `flutter analyze` no ven esto, porque sólo pasa con el ofuscador.
+  - **Última APK publicada:** `https://miti.sole.ar/descargas/miti-0.10.1.apk` (también
+    `miti.apk`, SHA256 `f51f701178d02635c27df24d6ea74022b0dcdc2a6d1a588cbb5142c6349658ed`).
+    Verificada instalada y abriendo en un Android 16.
   - **Datos de demostración cargados:** rifa «Deluxe Femme», 200 números, 116 ventas,
     liquidada. Campaña `42fa779d-ff74-4d94-8a3b-c18fa30c9915`, administradora
     eugenia.avila@live.com.ar. El cargador es `api/pruebas/cargar_demo_deluxe.py`.
