@@ -26,8 +26,14 @@
     <p><strong>Primera vez:</strong> activá el segundo factor.</p>
     <ol>
       <li>Abrí tu app autenticadora (Google Authenticator, Aegis, 1Password…).</li>
-      <li>Agregá una cuenta nueva <em>con clave de configuración</em> y escribí esta clave:</li>
+      <li>Escaneá este código QR:</li>
     </ol>
+    {% if qr_data_uri %}
+    <div style="text-align:center;margin:14px 0">
+      <img src="{{ qr_data_uri }}" alt="Código QR TOTP" width="180" height="180" style="background:#ffffff;padding:10px;border-radius:8px;box-shadow:0 1px 4px rgba(0,0,0,0.12);display:inline-block">
+    </div>
+    {% endif %}
+    <p class="suave" style="font-size:13px;text-align:center;margin-top:10px">O si no podés escanearlo, ingresá esta clave manualmente:</p>
     <p style="text-align:center"><code style="font-size:18px;letter-spacing:.08em">{{ secreto }}</code></p>
     <p class="suave" style="font-size:13px">Nombre: Miti · tipo: basada en el tiempo. Guardá también esta clave en tu gestor de contraseñas: si perdés el celular, es la única forma de volver a entrar.</p>
     <form method="post" action="/admin/enrolar">

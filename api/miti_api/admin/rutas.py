@@ -274,6 +274,21 @@ def _abrir_sesion(usuario_id: uuid.UUID) -> RedirectResponse:
     return r
 
 
+def _qr_data_uri(uri: str) -> str:
+    import reportlab.graphics.barcode.qr as qr
+    from reportlab.graphics.shapes import Drawing
+    import reportlab.graphics.renderSVG as renderSVG
+
+    w = qr.QrCodeWidget(uri)
+    w.barWidth = 180
+    w.barHeight = 180
+    d = Drawing(180, 180)
+    d.add(w)
+    svg = renderSVG.drawToString(d)
+    b64 = base64.b64encode(svg.encode("utf-8")).decode("ascii")
+    return f"data:image/svg+xml;base64,{b64}"
+
+
 @ruteador.get("/enrolar", response_class=HTMLResponse)
 async def ver_enrolar(pedido: Request) -> HTMLResponse:
     datos = _previa(pedido)
@@ -282,7 +297,10 @@ async def ver_enrolar(pedido: Request) -> HTMLResponse:
     secreto = cripto.descifrar(base64.b64decode(datos["enrolar"]))
     uri = pyotp.TOTP(secreto).provisioning_uri(name="administrador", issuer_name="Miti")
     agrupado = " ".join(secreto[i:i + 4] for i in range(0, len(secreto), 4))
-    return _pagina(pedido, "entrar.html", paso="enrolar", secreto=agrupado, uri=uri)
+    qr_uri = _qr_data_uri(uri)
+    return _pagina(
+        pedido, "entrar.html", paso="enrolar", secreto=agrupado, uri=uri, qr_data_uri=qr_uri
+    )
 
 
 @ruteador.post("/enrolar", response_class=HTMLResponse)
@@ -298,8 +316,16 @@ async def confirmar_enrolar(
         await _auditar(s, pedido, "totp_fallido", usuario_id, enrolando=True)
         uri = pyotp.TOTP(secreto).provisioning_uri(name="administrador", issuer_name="Miti")
         agrupado = " ".join(secreto[i:i + 4] for i in range(0, len(secreto), 4))
-        return _pagina(pedido, "entrar.html", paso="enrolar", secreto=agrupado, uri=uri,
-                       error="Ese código no coincide. Revisá la hora del celular y probá de nuevo.")
+        qr_uri = _qr_data_uri(uri)
+        return _pagina(
+            pedido,
+            "entrar.html",
+            paso="enrolar",
+            secreto=agrupado,
+            uri=uri,
+            qr_data_uri=qr_uri,
+            error="Ese código no coincide. Revisá la hora del celular y probá de nuevo.",
+        )
     admin = await s.get(Administrador, usuario_id)
     admin.totp_cifrado = cripto.cifrar(secreto)
     await s.commit()

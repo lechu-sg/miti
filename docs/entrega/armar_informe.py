@@ -140,6 +140,15 @@ def construir():
             ["Traspaso entre agentes", "github.com/lechu-sg/miti/blob/main/docs/TRASPASO.md"],
             ["Anexo de IA local", "github.com/lechu-sg/miti/blob/main/docs/ANEXO_IA_LOCAL.md"],
         ], [5 * cm, 11.5 * cm]),
+        Spacer(1, 8),
+        Paragraph(
+            "<b>Acceso de evaluación al panel:</b> Para evaluar el panel de administración "
+            "(https://miti.sole.ar/admin), el docente dispone de la cuenta "
+            "<b>cursos.agt@gmail.com</b>. Al ingresar el correo se envía un código de 6 dígitos "
+            "por email y en el primer acceso se solicita vincular el segundo factor TOTP escaneando "
+            "el código QR con Google Authenticator u otra app autenticadora.",
+            PIE,
+        ),
         PageBreak(),
     ]
 
@@ -208,7 +217,21 @@ def construir():
     )
 
     # ---------------------------------------------------------------- 3. stack
-    h += [PageBreak(), Paragraph("3. Stack tecnológico", H2),
+    h += [PageBreak(), Paragraph("3. Stack tecnológico", H2)]
+    h += parrafos(
+        "<b>Criterio de elección del stack:</b> La selección del ecosistema tecnológico respondió "
+        "fundamentalmente a dos factores: por un lado, las <b>recomendaciones de los modelos de IA</b> "
+        "sobre mejores prácticas para cada componente (transacciones ACID estrictas, despliegue "
+        "reproducible en contenedores, persistencia offline-first y backend asíncrono tipado); por el otro, "
+        "la decisión de <b>aprovechar el proyecto para explorar terreno desconocido y aprender</b> interactuando "
+        "con tecnologías que el autor jamás había utilizado. El aprovisionamiento y administración de un "
+        "VPS Linux ARM, el motor PostgreSQL con migraciones y copias continuas cifradas, el lenguaje Dart "
+        "con Flutter para desarrollo móvil, y la API asíncrona con FastAPI en Python representaban territorio nuevo. "
+        "La asistencia continua de la IA permitió avanzar sobre terreno desconocido con gran facilidad y velocidad de "
+        "implementación, alcanzando una arquitectura sólida y profesional.",
+    )
+    h += [
+          Spacer(1, 4),
           tabla([
               ["Componente", "Tecnología", "Por qué esta y no otra"],
               ["Frontend", "Flutter 3.47 (APK Android)",
