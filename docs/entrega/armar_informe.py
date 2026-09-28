@@ -43,24 +43,36 @@ P = ParagraphStyle("P", parent=hojas["BodyText"], fontName="Helvetica", fontSize
                    leading=15, alignment=TA_JUSTIFY, textColor=TINTA, spaceAfter=6)
 PIE = ParagraphStyle("PIE", parent=P, fontSize=8.5, textColor=SUAVE)
 CODIGO = ParagraphStyle("CODIGO", parent=P, fontName="Courier", fontSize=8.5, leading=11)
+TH_STYLE = ParagraphStyle(
+    "TH_STYLE", parent=hojas["Normal"], fontName="Helvetica-Bold", fontSize=8.5, leading=11, textColor=TINTA
+)
+TD_STYLE = ParagraphStyle(
+    "TD_STYLE", parent=hojas["Normal"], fontName="Helvetica", fontSize=8, leading=10.5, textColor=TINTA
+)
+
+
+def celda(x, estilo):
+    if isinstance(x, (Paragraph, Image)):
+        return x
+    return Paragraph(str(x), estilo)
 
 
 def tabla(datos, anchos, encabezado=True):
-    t = Table(datos, colWidths=anchos, repeatRows=1 if encabezado else 0)
+    datos_proc = []
+    for fila_idx, fila in enumerate(datos):
+        estilo_fila = TH_STYLE if (encabezado and fila_idx == 0) else TD_STYLE
+        datos_proc.append([celda(col, estilo_fila) for col in fila])
+    t = Table(datos_proc, colWidths=anchos, repeatRows=1 if encabezado else 0)
     estilo = [
-        ("FONTNAME", (0, 0), (-1, -1), "Helvetica"),
-        ("FONTSIZE", (0, 0), (-1, -1), 8.5),
-        ("TEXTCOLOR", (0, 0), (-1, -1), TINTA),
         ("VALIGN", (0, 0), (-1, -1), "TOP"),
         ("GRID", (0, 0), (-1, -1), 0.4, colors.HexColor("#CFC6B2")),
         ("LEFTPADDING", (0, 0), (-1, -1), 5),
         ("RIGHTPADDING", (0, 0), (-1, -1), 5),
-        ("TOPPADDING", (0, 0), (-1, -1), 4),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+        ("TOPPADDING", (0, 0), (-1, -1), 3),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
     ]
     if encabezado:
-        estilo += [("BACKGROUND", (0, 0), (-1, 0), PAPEL),
-                   ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold")]
+        estilo += [("BACKGROUND", (0, 0), (-1, 0), PAPEL)]
     t.setStyle(TableStyle(estilo))
     return t
 
@@ -224,7 +236,7 @@ def construir():
                "Es lo que usa el público argentino; el servidor nunca ve datos de tarjeta."],
               ["Copias de seguridad", "pgBackRest + gpg a Oracle y Backblaze",
                "Dos proveedores distintos, cifradas y con restauración probada automáticamente."],
-          ], [3.4 * cm, 4.4 * cm, 8.7 * cm])]
+          ], [3.5 * cm, 4.5 * cm, 9.0 * cm])]
 
     # ------------------------------------------------------------ 4. evidencia
     h += [PageBreak(), Paragraph("4. Evidencia de funcionamiento", H2)]
@@ -298,7 +310,7 @@ def construir():
                "muestra donde el teclado no lo tapa."],
               ["Ayuda y documentación", "Parcial",
                "Textos de ayuda en contexto; no hay manual."],
-          ], [4 * cm, 2 * cm, 10.5 * cm])]
+          ], [4.0 * cm, 2.2 * cm, 10.8 * cm])]
     h += [Paragraph("5.2 · Prueba con usuario real", H2)]
     h += parrafos(
         "Se probó con una usuaria real en un Android 16 y el feedback cambió el producto. En una "
@@ -344,7 +356,7 @@ def construir():
               ["Retención indefinida", "Privacidad",
                "Borrado automático 6 meses después de liquidada la campaña; baja de cuenta que "
                "anonimiza de forma irreversible."],
-          ], [4.3 * cm, 3.2 * cm, 9 * cm])]
+          ], [4.5 * cm, 3.2 * cm, 9.3 * cm])]
 
     # ------------------------------------------------------------- 7. co-work
     h += [PageBreak(), Paragraph("7. IAs usadas en el co-work de desarrollo", H2),
@@ -364,10 +376,10 @@ def construir():
                "Redacta el recordatorio de deuda dentro del producto.",
                "Bien con consignas cerradas; mal en preguntas abiertas: en la prueba inventó un "
                "«algoritmo de gestión de loterías» que no existe."],
-          ], [4 * cm, 6 * cm, 6.5 * cm])]
+          ], [4.0 * cm, 5.8 * cm, 7.2 * cm])]
     h += [captura("07-recordatorio-escrito-por-la-IA-local.png",
                   "El modelo del servidor redacta el recordatorio; la app avisa que lo escribió "
-                  "la IA y que hay que revisarlo antes de mandarlo.", 10 * cm)]
+                  "la IA y que hay que revisarlo antes de mandarlo.", 7.5 * cm)]
     h += [Paragraph("Reflexión", H2)]
     h += parrafos(
         "Sin co-work no existiría la mitad de lo que no se ve: las copias con restauración "
@@ -451,12 +463,12 @@ def construir():
         ["Evaluación UX/UI", "10 heurísticas evaluadas y prueba con usuaria real, con correcciones aplicadas."],
         ["Ciberseguridad", "10 riesgos con la medida tomada en cada uno."],
         ["Parte 2 · IA local", "Modelo corriendo en el VPS, integrado al producto y medido."],
-    ], [7 * cm, 9.5 * cm])]
+        ["Publicación en Google Play Store",
+         "No se realizó porque se requiere tener la app dada de alta y aprobada formalmente en Google Play; el proyecto se definió para distribuirse directamente por enlace (APK sin intermediarios ni demoras de revisión). Por esta misma razón, AdMob y notificaciones push operan con identificadores oficiales de prueba de Google."],
+    ], [6.5 * cm, 10.5 * cm])]
     h += [Spacer(1, 10)]
     h += parrafos(
-        "<b>Lo que sigue.</b> Configurar Firebase para las notificaciones push y AdMob con las "
-        "cuentas reales; cargar las credenciales de MercadoPago para habilitar el cobro de planes; "
-        "y una prueba cerrada con uno o dos grupos reales antes de mover Miti a su dominio propio.",
+        "<b>Lo que sigue.</b> Tramitar la cuenta de desarrollador en Google Play para habilitar AdMob con anuncios de producción y Firebase Cloud Messaging con credenciales reales (no se implementó en esta entrega dado que Google exige tener la aplicación publicada y verificada en su tienda); cargar las credenciales de MercadoPago para habilitar el cobro de planes; y coordinar una prueba cerrada con uno o dos grupos reales antes de mover Miti a su dominio propio definitivo.",
     )
 
     doc.build(h, onFirstPage=encabezado_pie, onLaterPages=encabezado_pie)
