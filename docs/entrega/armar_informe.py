@@ -402,23 +402,24 @@ def construir():
           ], [4.0 * cm, 5.8 * cm, 7.2 * cm])]
     h += [captura("07-recordatorio-escrito-por-la-IA-local.png",
                   "El modelo del servidor redacta el recordatorio; la app avisa que lo escribió "
-                  "la IA y que hay que revisarlo antes de mandarlo.", 7.5 * cm)]
-    h += [Paragraph("Reflexión", H2)]
+                  "la IA y que hay que revisarlo antes de mandarlo.", 6.0 * cm)]
+    h += [Paragraph("Reflexión: ¿Eso es programar?", H2)]
     h += parrafos(
-        "Sin co-work no existiría la mitad de lo que no se ve: las copias con restauración "
-        "probada, el panel con segundo factor y 407 pruebas automáticas contra producción. En un "
-        "proyecto de una persona eso se deja para después y nunca se hace.",
-        "Lo que la IA hizo mal fue casi siempre <b>por no preguntar</b>. Un error de "
-        "autenticación quemaba el código de acceso cuando faltaban datos y dejaba al usuario "
-        "afuera. El tope de ventas del plan gratis se aplicó también a las rifas, que se miden "
-        "por talonario. Los importes se mostraban como «15.000 $» en vez de «$ 15.000». Y una "
-        "versión del APK no abría: el SDK de anuncios arrastra WorkManager, y el ofuscador "
-        "renombraba una clase que Room busca por reflexión; ni las pruebas ni el analizador "
-        "estático lo detectan, sólo instalarlo en un teléfono.",
-        "La conclusión práctica del curso: el agente acelera la construcción, pero el criterio "
-        "—qué es correcto para este negocio— sigue siendo humano, y hay que escribirlo en algún "
-        "lado que el agente lea. En este proyecto ese lugar son la definición, el documento de "
-        "traspaso y la skill de diseño.",
+        "<b>Cruce entre modelos y traspaso:</b> No se utilizó una única IA, sino un cruce complementario "
+        "entre modelos de distintos proveedores (Claude Opus 5 de Anthropic y Gemini 3.8 Flash de Google), "
+        "sumando además a Llama 3.2 en local. Claude estructuró la arquitectura inicial, las suites de "
+        "prueba y la infraestructura de despliegue. Al agotarse la cuota, Gemini tomó el relevo leyendo "
+        "la memoria persistente en git (<i>docs/DEFINICION.md</i> y <i>docs/TRASPASO.md</i>), releyendo "
+        "las decisiones previas y completando 6 fases funcionales sin pérdida de contexto ni retrabajo.",
+        "<b>El rol humano y el paradigma de AI coding:</b> Frente a la pregunta formulada en el curso sobre "
+        "si <i>pasar de una IA a otra para su relectura y mejora es programar</i>, la experiencia de este "
+        "proyecto demuestra que <b>es la esencia del nuevo paradigma de AI coding y loop coding</b>. "
+        "Programar ya no consiste en tipear sintaxis ni pelear con la gramática de un lenguaje; el programador "
+        "asume el rol de <b>arquitecto y director de orquesta</b>: define las reglas de negocio, gobierna "
+        "la memoria y el contexto, audita rigurosamente los desvíos (como los errores de estilo o de "
+        "ofuscación que los modelos pasaron por alto) y valida sobre el entorno real. Sin este co-work "
+        "asistido, la profundidad del sistema —con 407 pruebas automáticas, copias WAL cifradas en dos nubes "
+        "y doble factor en el panel— hubiera sido inalcanzable en el tiempo disponible para una sola persona.",
     )
 
     # ------------------------------------------------------ Parte 2 · IA local
