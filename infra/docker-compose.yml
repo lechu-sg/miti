@@ -18,6 +18,7 @@ services:
       - /srv/miti/data/caddy-config:/config
       - /srv/miti/descargas:/srv/descargas:ro
       - ./portada:/srv/portada:ro
+      - /srv/extra-caddy:/etc/caddy/extra:ro
     environment:
       MITI_DOMINIO: ${MITI_DOMINIO:?falta MITI_DOMINIO}
     depends_on:

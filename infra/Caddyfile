@@ -37,3 +37,7 @@
 
 	reverse_proxy api:8000
 }
+
+# Sitios de otros servicios del VPS que no son Miti (p. ej. red.sole.ar = Headscale).
+# Viven fuera del repo, en /srv/extra-caddy (vacío = no hace nada).
+import /etc/caddy/extra/*.caddy
